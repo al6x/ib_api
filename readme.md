@@ -13,7 +13,8 @@ For API docs see [IB.kt](https://github.com/alexeypetrushin/ib_api/blob/master/s
 
 # Videos
 
-- Overview https://youtu.be/JVQNyyUPSnY 
+- Overview https://youtu.be/JVQNyyUPSnY
+- Using in Nim language https://youtu.be/wSFj3jZQ-oE
 
 # Notes
 
