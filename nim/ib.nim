@@ -354,7 +354,7 @@ proc get_portfolio*(ib: IB): seq[Portfolio] =
 # US Testing ---------------------------------------------------------------------------------------
 let ib = init_ib()
 
-# p ib.get_stock_contract(symbol="MSFT", exchange="ISLAND", currency="USD")
+# p ib.get_stock_contract(symbol="MSFT", exchange="ISLAND", currency="USD").to_json
 
 # p ib.get_stock_contracts(symbol = "MSFT").to_json
 
