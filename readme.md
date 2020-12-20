@@ -6,7 +6,7 @@ I do **Statstics**, **Analytics**, **Visualization**, $110/hr.
 
 **Simple and clean REST/Java/Kotlin/Nim API** for Interactive Brokers, [demo](https://youtu.be/JVQNyyUPSnY).
 
-It will automatically connect and disconnect to running TWS UI and exposes its messy Evented API
+It will automatically connect and disconnect to running TWS UI and exposes its complicated evented API
 as **simple HTTP API**.
 
 For API docs see [IB.kt](https://github.com/alexeypetrushin/ib_api/blob/master/src/ib/ib.kt)
@@ -16,20 +16,7 @@ For API docs see [IB.kt](https://github.com/alexeypetrushin/ib_api/blob/master/s
 - Overview https://youtu.be/JVQNyyUPSnY
 - Using in Nim language https://youtu.be/wSFj3jZQ-oE
 
-# Notes
-
-It's better to specify `exhange` and `currency` explicitly.
-
-It's better to first get stock contract ID and then use that ID to get stock price. Because for some
-stocks like "VAR1 IBIS:EUR" price is not available if asked on "IBIS", but available on "SMART".
-
-Exchange for options could be different from the exchange for stock. The stock "VAR1 EUR" traded
-on "IBIS" but its option traded on "DTB".
-
 # Examples
-
-Use implementation of `/api/v1/inspect_stock?symbol=VAR1` as example, it uses many API methods
-to display information about the stock.
 
 Example, **get stock price**:
 
@@ -149,7 +136,11 @@ http post http://localhost:8001/call [
 ]
 ```
 
-# How to use
+Also look at the implementation of `/api/v1/inspect_stock?symbol=VAR1` as example, it uses many API methods
+to display information about the stock.
+
+
+# Installation
 
 1 Download this IB API repository.
 
@@ -173,6 +164,18 @@ by this driver when it's started (it could be changed in config if you want diff
 8 Change config if needed. Any default config variable could be overiden by shell variable with
 the same name, for list of all the configuration options
 see [Config.kt](https://github.com/alexeypetrushin/ib_api/blob/master/src/ib/config.kt) file.
+
+
+# Usage notes
+
+It's better to specify `exhange` and `currency` explicitly.
+
+It's better to first get stock contract ID and then use that ID to get stock price. Because for some
+stocks like "VAR1 IBIS:EUR" price is not available if asked on "IBIS", but available on "SMART".
+
+Exchange for options could be different from the exchange for stock. The stock "VAR1 EUR" traded
+on "IBIS" but its option traded on "DTB".
+
 
 # Client Libraries
 
