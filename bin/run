@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+mvn -q exec:java -Dexec.mainClass="AppKt"
+# java -jar target/ib_tws_api-1.jar

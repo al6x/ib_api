@@ -1,0 +1,3 @@
+- Add video demo with usage and installation to readme
+- Add more price types, see bid/ask/last -1
+- How to get the time of last price, see http://tiny.cc/mndksz
