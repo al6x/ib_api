@@ -1,4 +1,3 @@
 #!/usr/bin/env bash
 
 mvn -q compile exec:java -Dexec.mainClass="AppKt"
-#gradle --console plain -q run

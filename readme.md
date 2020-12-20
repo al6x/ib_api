@@ -29,10 +29,10 @@ to display information about the stock.
 Example, **get stock price**:
 
 ```
-http://localhost:8001/api/v1/stock_price?symbol=MCD&exchange=NYSE&currency=USD
+http://localhost:8001/api/v1/stock_price?symbol=MSFT&exchange=NYSE&currency=USD
 
 {
-  "price": 215.37,
+  "price": 219.42,
   "datatype": "realtime",
   "price_type": "lastPrice"
 }
