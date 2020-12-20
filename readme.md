@@ -4,12 +4,12 @@ I do **Statstics**, **Analytics**, **Visualization**, $110/hr.
 
 # What it is
 
-**Simple and clean HTTP API** and Kotlin/Java API to Interactive Brokers.
+**Simple and clean REST/Java/Kotlin API** for Interactive Brokers.
 
 It will automatically connect and disconnect to running TWS UI and exposes its messy Evented API
 as **simple HTTP API**.
 
-For API docs see [IB.kt](https://github.com/alexeypetrushin/ib_api/blob/master/src/ib/ib.kt)
+For API docs see [IB.kt](https://github.com/alexeypetrushin/ib_api/blob/master/src/ib/ib.kt) 
 
 # Notes
 
