@@ -1,0 +1,3 @@
+[submodule "nim/bon_nim"]
+	path = nim/bon_nim
+	url = https://github.com/al6x/bon_nim
