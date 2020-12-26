@@ -5,7 +5,7 @@
 #
 #   nim c -r ib.nim
 
-import bon, bon/times, bon/http, json, math
+import basem, timem, httpm, json, math
 
 
 # IB and Config ------------------------------------------------------------------------------------
