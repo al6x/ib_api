@@ -3,7 +3,7 @@
 # It depends on the `bon` library https://github.com/al6x/bon_nim download it and add to the nim
 # paths in the `nim.cfg`.
 #
-#   nim c -r ib.nim
+#   nim c -r ibm.nim
 
 import basem, timem, httpm, json, math
 

@@ -179,8 +179,8 @@ on "IBIS" but its option traded on "DTB".
 
 # Client Libraries
 
-- Nim - [nim/ib.nim](/nim/ib.nim)
-- Other languages - look at code in [nim/ib.nim](/nim/ib.nim) and translate it
+- Nim - [nim/ibm.nim](/nim/ibm.nim)
+- Other languages - look at code in [nim/ibm.nim](/nim/ibm.nim) and translate it
   to language you need, it's short and simple.
 
 # Features
