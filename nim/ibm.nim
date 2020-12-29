@@ -219,7 +219,7 @@ type IdAndExchange* = tuple
   currency:        string # USD
   data_type:       string # Market data type
 
-proc get_stock_options_prices_by_ids(
+proc get_stock_options_prices_by_ids*(
   ib:         IB,
   contracts:  seq[IdAndExchange]
 ): seq[Errorneous[OptionContractPrice]] =

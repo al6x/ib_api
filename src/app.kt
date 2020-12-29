@@ -8,7 +8,7 @@ fun main() {
 //    "workers_count"      to 1,
 //    "retry_count"        to 1,
 //    "disable_logs"       to "wrapper,worker.info,worker.debug"
-      "disable_logs"       to "wrapper"
+    "disable_logs"       to "wrapper"
   )
 
   log_info("Made by http://al6x.com, I do Analytics, Data Mining, Visualisations, $110/hr")
