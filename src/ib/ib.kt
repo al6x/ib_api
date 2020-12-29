@@ -152,7 +152,6 @@ abstract class IB {
     }
 
   class SnapshotPrice(
-    // val price_type: PriceType          // IB code for price type last, delayed etc.
     val last_price:        Double?,
     val close_price:       Double?,
     val ask_price:         Double?,
