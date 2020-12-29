@@ -24,9 +24,12 @@ Example, **get stock price**:
 http://localhost:8001/api/v1/stock_price?symbol=MSFT&exchange=NYSE&currency=USD
 
 {
-  "price": 219.42,
-  "datatype": "realtime",
-  "price_type": "lastPrice"
+  last_price: 224.34,
+  close_price: 224.96,
+  ask_price: 224.37,
+  bid_price: 224.32,
+  approximate_price: 224.345,
+  data_type: "realtime"
 }
 ```
 
