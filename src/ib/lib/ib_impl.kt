@@ -167,8 +167,8 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         final_event        -> events
         else               -> null
       }},
-      IbConfig.large_timeout_ms,
-      IbConfig.recommended_waiting_time
+      IbConfig.recommended_waiting_time,
+      IbConfig.large_timeout_ms
     )
 
     return events.map { event -> when (event) {
@@ -330,8 +330,8 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         final_event        -> events
         else               -> null
       }},
-      IbConfig.large_timeout_ms,
-      IbConfig.recommended_waiting_time
+      IbConfig.recommended_waiting_time,
+      IbConfig.large_timeout_ms
     )
 
     // Parsing and sorting events

@@ -166,9 +166,9 @@ abstract class IB {
     last_price: Double?, close_price: Double?, ask_price: Double?, bid_price: Double?
   ): Double? = when {
     bid_price != null && ask_price != null -> (ask_price + bid_price) / 2
-    last_price != null               -> last_price
-    close_price != null              -> close_price
-    else                       -> null
+    last_price != null                     -> last_price
+    close_price != null                    -> close_price
+    else                                   -> null
   }
 
 

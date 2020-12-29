@@ -16,7 +16,7 @@ object IbConfig {
   val large_timeout_ms:         Int = Env["large_timeout_ms", "120000"].toInt()
   val timeout_ms:               Int = Env["timeout_ms", "10000"].toInt()
 
-  // Used to wait for price events
+  // Used to optimize waiting for price events
   val recommended_waiting_time: Int = Env["recommended_waiting_time", "3000"].toInt()
 
   // 50 msg/sec, no more than 60 historic requests per 10 minutes
