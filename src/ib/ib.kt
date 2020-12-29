@@ -288,16 +288,6 @@ abstract class IB {
       )
     }
 
-//  class OptionContractPrice(
-//    //  val price_type: PriceType       // IB code for price type last, delayed etc.
-//    val last_price:  Double?,
-//    val close_price: Double?,
-//    val ask_price:   Double?,
-//    val bid_price:   Double?,
-//    val data_type:   MarketDataType // IB code for market data type, realtime, delayed etc.
-//  )
-
-
   // get_stock_option_price_by_id ------------------------------------------------------------
   // When searching by id - the currency is ignored by IB
   abstract fun get_stock_option_price_by_id(
@@ -320,22 +310,6 @@ abstract class IB {
 
   // Minor types -----------------------------------------------------------------------------------
   enum class ContractType { stock, option }
-
-//  enum class PriceType(val type: TickType) {
-//    last_price    (TickType.LAST),
-//    delayed_last  (TickType.DELAYED_LAST),
-//    close         (TickType.CLOSE),
-//    delayed_close (TickType.DELAYED_CLOSE),
-//    ask           (TickType.ASK),
-//    delayed_ask   (TickType.DELAYED_ASK),
-//    bid           (TickType.BID),
-//    delayed_bid   (TickType.DELAYED_BID),
-//
-//    open_         (TickType.OPEN),
-//    delayed_open  (TickType.DELAYED_OPEN);
-//
-//    override fun toString(): String = type.field()
-//  }
 
   enum class MarketDataType(val code: Int) {
     realtime       (com.ib.client.MarketDataType.REALTIME),

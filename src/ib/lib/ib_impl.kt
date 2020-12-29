@@ -394,14 +394,6 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     return get_last_price("get_stock_option_price_by_id", contract, data_type)
   }
 
-//  private class SnapshotPrice(
-//    val last_price:  Double?,
-//    val close_price: Double?,
-//    val ask_price:   Double?,
-//    val bid_price:   Double?,
-//    val data_type:   MarketDataType
-//  )
-//
   private fun get_last_price(
     type: String, contract: Contract, data_type: MarketDataType?
   ): SnapshotPrice {

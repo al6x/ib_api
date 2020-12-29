@@ -28,12 +28,6 @@ class EventTypes {
 
     override fun toString(): String = type.field()
 
-//    fun to_price_type(): PriceType {
-//      for (type in PriceType.values())
-//        if (type.to_string().toLowerCase() == this.to_string().toLowerCase()) return type
-//      throw Exception("Unknown PriceType $this")
-//    }
-
     companion object {
       fun value_of(value: Int): InternalPriceType {
         for (type in values()) if (type.type.index() == value) return type
