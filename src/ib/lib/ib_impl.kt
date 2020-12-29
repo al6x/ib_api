@@ -516,12 +516,8 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
                 !last_price_events.is_empty() && !close_price_events.is_empty() &&
                 !ask_price_events.is_empty() && !bid_price_events.is_empty()
               ) ||
-              // Waited for recommended time and bid/ask or last price available
-              (
-                waited_recommended_time && (
-                  ((ask_price != null) && (bid_price != null)) || last_price != null
-                )
-              )
+              // Waited for recommended time and has some price
+              waited_recommended_time
             )
           ) {
             SnapshotPrice(

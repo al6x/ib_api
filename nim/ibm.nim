@@ -74,9 +74,8 @@ proc get_stock_contracts*(
 
 # get_stock_price ----------------------------------------------------------------------------------
 type StockPrice* = object
-  price*:      float
-  data_type*:  string # IB code for market data type, realtime, delayed etc.
-  price_type*: string # IB code for price type last, delayed etc.
+  approximate_price*: float
+  data_type*:         string # IB code for market data type, realtime, delayed etc.
 
 proc get_stock_price*(
   ib:         IB,
@@ -179,9 +178,8 @@ proc get_stock_option_chain_contracts_by_expirations*(
 
 # get_stock_options_prices -------------------------------------------------------------------------
 type OptionContractPrice* = object
-  price*:      float
-  data_type*:  string # IB code for market data type, realtime, delayed etc.
-  price_type*: string # IB code for price type last, delayed etc.
+  approximate_price*: float
+  data_type*:         string # IB code for market data type, realtime, delayed etc.
 
 type StockOptionParams* = tuple
   symbol:          string  # MSFT
