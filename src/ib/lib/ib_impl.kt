@@ -38,7 +38,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       { _, request_id, client ->
         client.cancelPositionsMulti(request_id)
       },
-      { _, errors, events, final_event -> when {
+      { _, errors, events, final_event, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
@@ -92,7 +92,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       { _, request_id, client ->
         client.cancelAccountSummary(request_id)
       },
-      { _, errors, events, final_event -> when {
+      { _, errors, events, final_event, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
@@ -128,7 +128,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqContractDetails(request_id, contract)
       },
       null,
-      { _, errors, events, final_event -> when {
+      { _, errors, events, final_event, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> {
           assert(events.size == 1) { "Wrong events size ${events.size}" }
@@ -159,7 +159,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqContractDetails(request_id, contract)
       },
       null,
-      { _, errors, events, final_event -> when {
+      { _, errors, events, final_event, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
@@ -188,7 +188,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqContractDetails(request_id, contract)
       },
       null,
-      { _, errors, events, final_event -> when {
+      { _, errors, events, final_event, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events.map { event -> event as ContractDetails }
         else               -> null
@@ -206,7 +206,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
 
   override fun get_stock_price(
     symbol: String, exchange: String, currency: String, data_type: MarketDataType?
-  ): StockPrice {
+  ): SnapshotPrice {
     log.info("get_stock_price $symbol $exchange:$currency $data_type")
     val contract = Contract()
     contract.symbol(symbol)
@@ -219,7 +219,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
 
   override fun get_stock_price_by_id(
     id: Int, exchange: String, currency: String, data_type: MarketDataType?
-  ): StockPrice {
+  ): SnapshotPrice {
     log.info("get_stock_price_by_id $id $exchange:$currency $data_type")
 
     val contract = Contract()
@@ -231,13 +231,8 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
   }
 
 
-  private fun get_stock_price(contract: Contract, data_type: MarketDataType?): StockPrice {
-    val lp = get_last_price("get_last_stock_price", contract, data_type)
-    return StockPrice(
-      price      = lp.price,
-      data_type  = lp.data_type,
-      price_type = lp.price_type
-    )
+  private fun get_stock_price(contract: Contract, data_type: MarketDataType?): SnapshotPrice {
+    return get_last_price("get_last_stock_price", contract, data_type)
   }
 
 
@@ -265,7 +260,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqSecDefOptParams(request_id, symbol, "", "STK", id)
       },
       null,
-      { _, errors, events, final_event -> when {
+      { _, errors, events, final_event, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
@@ -324,7 +319,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqContractDetails(id, contract)
       },
       null,
-      { _, errors, events, final_event -> when {
+      { _, errors, events, final_event, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
@@ -358,7 +353,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     option_exchange: String,         // AMEX, different from the stock exchange
     currency:        String,         // USD
     data_type:       MarketDataType? // optional, realtime by default
-  ): OptionContractPrice {
+  ): SnapshotPrice {
     log.info("get_stock_option_price $symbol-$right-$expiration-$strike $option_exchange:$currency $data_type")
 
     val contract = Contract()
@@ -371,12 +366,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     contract.currency(currency)
 //    contract.multiplier("100")
     
-    val price = get_last_price("get_stock_option_price", contract, data_type)
-    return OptionContractPrice(
-      price      = price.price,
-      data_type  = price.data_type,
-      price_type = price.price_type
-    )
+    return get_last_price("get_stock_option_price", contract, data_type)
   }
 
 
@@ -385,7 +375,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     option_exchange: String,         // AMEX, different from the stock exchange
     currency:        String,         // USD
     data_type:       MarketDataType? // optional, realtime by default
-  ): OptionContractPrice {
+  ): SnapshotPrice {
     log.info("get_stock_option_price_by_id $id $option_exchange:$currency $data_type")
 
     // // Querying option contract ids if it's not provided, it's very slow operation.
@@ -401,40 +391,28 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     contract.currency(currency)
     contract.conid(id)
     contract.secType(Types.SecType.OPT)
-    val price = get_last_price("get_stock_option_price_by_id", contract, data_type)
-    return OptionContractPrice(
-      price      = price.price,
-      data_type  = price.data_type,
-      price_type = price.price_type
-    )
+    return get_last_price("get_stock_option_price_by_id", contract, data_type)
   }
 
-
-  private class LastPrice(
-    val price:      Double,
-    val data_type:  MarketDataType,
-    val price_type: PriceType
-  )
-
+//  private class SnapshotPrice(
+//    val last_price:  Double?,
+//    val close_price: Double?,
+//    val ask_price:   Double?,
+//    val bid_price:   Double?,
+//    val data_type:   MarketDataType
+//  )
+//
   private fun get_last_price(
     type: String, contract: Contract, data_type: MarketDataType?
-  ): LastPrice {
+  ): SnapshotPrice {
     val prices = get_last_prices(type, list_of(contract), data_type)
     assert(prices.size == 1) { "wrong size for prices ${prices.size}" }
     return prices[0]
   }
 
-  val price_event_types = set_of(
-    EventTypes.InternalPriceType.LAST,
-    EventTypes.InternalPriceType.CLOSE,
-
-    EventTypes.InternalPriceType.DELAYED_LAST,
-    EventTypes.InternalPriceType.DELAYED_CLOSE
-  )
-
   private fun get_last_prices(
     type: String, contracts: List<Contract>, data_type: MarketDataType?
-  ): List<LastPrice> {
+  ): List<SnapshotPrice> {
     return queue.process_all(
       type,
       contracts,
@@ -445,45 +423,95 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       { _, request_id, client ->
         client.cancelMktData(request_id)
       },
-      { _, errors, events, _ ->
+      { _, errors, events, _, timed_out ->
         if (!errors.is_empty()) throw errors.first() // Throwing just the first error for simplicity
 
         // Scanning if events contain price and market data type events
-        var price_event:      IBWrapper.PriceEvent? = null
-        var market_data_type: IBWrapper.MarketDataTypeEvent? = null
+        val last_price_events  = mutable_list_of<IBWrapper.PriceEvent>()
+        val close_price_events = mutable_list_of<IBWrapper.PriceEvent>()
+        val ask_price_events   = mutable_list_of<IBWrapper.PriceEvent>()
+        val bid_price_events   = mutable_list_of<IBWrapper.PriceEvent>()
+        var market_data_type:   IBWrapper.MarketDataTypeEvent? = null
+
+        val last_price_event_types = set_of(
+          EventTypes.InternalPriceType.LAST,
+          EventTypes.InternalPriceType.DELAYED_LAST
+        )
+        val close_price_event_types = set_of(
+          EventTypes.InternalPriceType.CLOSE,
+          EventTypes.InternalPriceType.DELAYED_CLOSE
+        )
+
+        val ask_price_event_types = set_of(
+          EventTypes.InternalPriceType.ASK,
+          EventTypes.InternalPriceType.DELAYED_ASK
+        )
+
+        val bid_price_event_types = set_of(
+          EventTypes.InternalPriceType.BID,
+          EventTypes.InternalPriceType.DELAYED_BID
+        )
+
         // Reversing to prefer the latest events
-        events.reversed().each { event -> when (event) {
+        events.each { event -> when (event) {
           is IBWrapper.PriceEvent -> {
-            if (
-              (event.type in price_event_types) and
-              // If delayed data requested, the Interactive Brokers respond with delayed price = 0
-              // Try /api/v1/stock_price?symbol=6752&currency=JPY&data_type=delayed
-              (event.price > 0)
-            ) price_event = event
+            if (market_data_type != null) {
+              when (event.type) {
+                in last_price_event_types  -> last_price_events.add(event)
+                in close_price_event_types -> close_price_events.add(event)
+                in ask_price_event_types   -> ask_price_events.add(event)
+                in bid_price_event_types   -> bid_price_events.add(event)
+                else                       -> {
+                  // Ignoring
+                }
+              }
+            } else {
+              // Ignoring events arived before the market data event
+            }
           }
           is IBWrapper.MarketDataTypeEvent -> {
+            val market_data_type_copy = market_data_type
+            if (market_data_type_copy != null) assert(market_data_type_copy.type == event.type) {
+              "Two different MarketDataTypes ${market_data_type_copy.type} and ${event.type}"
+            }
+            market_data_type = event
+
             // There could be multiple market data type events, using the event that occured
             // right before the found price and ignoring other events.
-            if (price_event != null && market_data_type == null) market_data_type = event
-
-            // if (market_data_type != null) assert(market_data_type!!.type == event.type) {
-            //   "Two different MarketDataTypes ${market_data_type!!.type} and ${event.type}"
-            // }
-            // market_data_type = event
+            // if (price_event != null && market_data_type == null) market_data_type = event
           }
-//          is IBWrapper.PriceTimestampEvent -> {
-//            if (event.type == TimeType.LAST_TIME || timeEvent.type == TimeType.LAST_TIME_DELAYED) {
-//              timeMs = event.time;
-//            }
-//          }
+          is IBWrapper.PriceTimestampEvent -> {
+            // Ignoring for now, not sure how it works, it's not always available
+            // if (event.type == TimeType.LAST_TIME || timeEvent.type == TimeType.LAST_TIME_DELAYED) {
+            //   timeMs = event.time;
+            // }
+          }
+          is IBWrapper.SizeEvent, is IBWrapper.TickReqParamsEvent -> {
+            // Ignoring for now
+          }
+          else -> throw Exception("wrong price event ${event::class}")
         }}
 
-        val pevent = price_event; val mevent = market_data_type
-        if (pevent != null && mevent != null) {
-          LastPrice(
-            price      = pevent.price,
-            data_type  = mevent.type,
-            price_type = pevent.type.to_price_type()
+        fun get_price(events: List<IBWrapper.PriceEvent>): Double? {
+          // Checking that price > 0, the Interactive Brokers may respond with `0` or `-1`
+          // Try /api/v1/stock_price?symbol=6752&currency=JPY&data_type=delayed
+          return events.find { it.price > 0 } ?.price
+        }
+
+        val market_data_type_copy = market_data_type
+        if (
+          // Got all prices or timed_out
+          market_data_type_copy != null && (timed_out || (
+            !last_price_events.is_empty() && !close_price_events.is_empty() &&
+            !ask_price_events.is_empty() && !bid_price_events.is_empty()
+          ))
+        ) {
+          SnapshotPrice(
+            last_price  = get_price(last_price_events),
+            close_price = get_price(close_price_events),
+            ask_price   = get_price(ask_price_events),
+            bid_price   = get_price(bid_price_events),
+            data_type   = market_data_type_copy.type
           )
         } else null
       },

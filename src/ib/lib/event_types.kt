@@ -2,7 +2,6 @@ package ib.lib
 
 import bon.*
 import com.ib.client.TickType
-import ib.IB.PriceType
 
 // EventTypes separates TickType events into meaningfull groups. Also TickType.get has a
 // problem and shoulnd't be used as it would silently return UNKNOWN for unknown event instead
@@ -29,11 +28,11 @@ class EventTypes {
 
     override fun toString(): String = type.field()
 
-    fun to_price_type(): PriceType {
-      for (type in PriceType.values())
-        if (type.to_string().toLowerCase().equals(this.to_string().toLowerCase())) return type
-      throw Exception("Unknown PriceType $this")
-    }
+//    fun to_price_type(): PriceType {
+//      for (type in PriceType.values())
+//        if (type.to_string().toLowerCase() == this.to_string().toLowerCase()) return type
+//      throw Exception("Unknown PriceType $this")
+//    }
 
     companion object {
       fun value_of(value: Int): InternalPriceType {

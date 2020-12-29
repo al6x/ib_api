@@ -12,7 +12,7 @@ private val log = Log("IB")
 typealias MakeRequest<Input>      = (input: Input, request_id: Int, client: EClientSocket) -> Void
 typealias CancelRequest<Input>    = (input: Input, request_id: Int, client: EClientSocket) -> Void
 typealias CalculateResult<Input, Result> = (
-  input: Input, errors: List<AsyncError>, events: List<Any>, final_event: Boolean
+  input: Input, errors: List<AsyncError>, events: List<Any>, final_event: Boolean, timed_out: Boolean
 ) -> Result?
 
 class TaskExecutor<Input, Result>(
@@ -29,8 +29,10 @@ class TaskExecutor<Input, Result>(
     (cancel_request ?: return)(input, request_id, client)
   }
 
-  fun calculate_result(errors: List<AsyncError>, events: List<Any>, final_event: Boolean): Result? {
-    return calculate_result(input, errors, events, final_event)
+  fun calculate_result(
+    errors: List<AsyncError>, events: List<Any>, final_event: Boolean, timed_out: Boolean
+  ): Result? {
+    return calculate_result(input, errors, events, final_event, timed_out)
   }
 }
 

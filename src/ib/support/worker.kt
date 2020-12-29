@@ -216,22 +216,25 @@ class Worker(
           in_process.task, in_process, Fail<Any>(in_process.special_errors.first())
         ))
       }
-      // Checking timeout
-      else if (in_process.timer() > in_process.task.timeout_ms) {
-        val error = Exception("Timeout error after waiting for ${in_process.timer() / 1000}sec")
-        processed.add(
-          TaskProcessedState(in_process.task, in_process, Fail<Any>(error))
-        )
-      }
       // Calculating result
       else {
+        // Checking timeout
+        val timed_out = in_process.timer() > in_process.task.timeout_ms
         try {
           val processed_task = in_process.task.executor.calculate_result(
-            in_process.errors, in_process.events, in_process.final_event
+            in_process.errors, in_process.events, in_process.final_event, timed_out
           )
-          if (processed_task != null) processed.add(
-            TaskProcessedState(in_process.task, in_process, Success(processed_task))
-          )
+
+          if (processed_task != null) {
+            processed.add(
+              TaskProcessedState(in_process.task, in_process, Success(processed_task))
+            )
+          } else if (timed_out) {
+            val error = Exception("Timeout error after waiting for ${in_process.timer() / 1000}sec")
+            processed.add(
+              TaskProcessedState(in_process.task, in_process, Fail<Any>(error))
+            )
+          }
         } catch (e: Exception) {
           processed.add(TaskProcessedState(in_process.task, in_process, Fail<Any>(e)))
         }

@@ -106,7 +106,7 @@ Example, **get option contract price**:
 
 ```
 http://localhost:8001/api/v1/stock_option_price?symbol=SIVR&right=call&expiration=2021-03-19&strike=20.0
-&exchange=AMEX&currency=USD
+&exchange=AMEX&option_exchange=CBOE&currency=USD
 
 {
   "price": 5.0,

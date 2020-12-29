@@ -83,6 +83,7 @@ class IBWrapper(
 
   private fun on_event_sync(ename: String?, request_id: Int?, event: Any?): Void = synchronized(this) {
     log.debug("$id received $ename for request_id $request_id")
+//    p(event)
     if (!is_terminated) send_event_to_worker(IbWrapperEvent(
       ename ?: "null-ename", request_id ?: -1, worker_id, event ?: "null-event"
     ))

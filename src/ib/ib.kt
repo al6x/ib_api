@@ -2,7 +2,6 @@ package ib
 
 import bon.*
 import bon.http.*
-import com.ib.client.TickType
 
 
 // API to IB through TWS.
@@ -37,7 +36,7 @@ abstract class IB {
     val primary_exchange:             String,
     val exchanges:                    List<String>,
     //                                     exchange ->  price
-    val stock_prices:                 Dict<String, ErrorneousS<StockPrice>>,
+    val stock_prices:                 Dict<String, ErrorneousS<SnapshotPrice>>,
     val largest_option_chains_desc:   List<OptionChain>,
     val option_chain_contracts_count: Dict<String, ErrorneousS<Int>>,
     val option_chain_prices:          Dict<String, StockOptionPricesInfo>
@@ -47,7 +46,7 @@ abstract class IB {
     val total_count:   Int,
     val success_count: Int,
     val errors_count:  Dict<String, Int>,
-    val price_types:   Dict<PriceType, Int>
+    val price_types:   Dict<String, Int>
   )
 
 
@@ -140,7 +139,7 @@ abstract class IB {
     exchange:  String,         // SMART
     currency:  String,         // USD
     data_type: MarketDataType? // optional, realtime by default
-  ): StockPrice
+  ): SnapshotPrice
 
   private fun expose_get_stock_price(server: Server) =
     server.get("/api/v1/stock_price") { request ->
@@ -152,10 +151,13 @@ abstract class IB {
       )
     }
 
-  class StockPrice(
-    val price:      Double,
-    val data_type:  MarketDataType, // IB code for market data type, realtime, delayed etc.
-    val price_type: PriceType       // IB code for price type last, delayed etc.
+  class SnapshotPrice(
+    // val price_type: PriceType       // IB code for price type last, delayed etc.
+    val last_price:  Double?,
+    val close_price: Double?,
+    val ask_price:   Double?,
+    val bid_price:   Double?,
+    val data_type:   MarketDataType // IB code for market data type, realtime, delayed etc.
   )
 
 
@@ -165,7 +167,7 @@ abstract class IB {
     exchange:  String,         // SMART, exchange used just to be sure the proper contract will be found
     currency:  String,         // USD, currency used just to be sure the proper contract will be found
     data_type: MarketDataType? // optional, realtime by default
-  ): StockPrice
+  ): SnapshotPrice
 
   private fun expose_get_stock_price_by_id(server: Server) =
     server.get("/api/v1/stock_price_by_id") { request ->
@@ -271,7 +273,7 @@ abstract class IB {
     option_exchange: String,         // AMEX, different from the stock exchange
     currency:        String,         // USD
     data_type:       MarketDataType? // optional, realtime by default
-  ): OptionContractPrice
+  ): SnapshotPrice
 
   private fun expose_get_stock_option_price(server: Server) =
     server.get("/api/v1/stock_option_price") { request ->
@@ -286,11 +288,14 @@ abstract class IB {
       )
     }
 
-  class OptionContractPrice(
-    val price:      Double,
-    val data_type:  MarketDataType, // IB code for market data type, realtime, delayed etc.
-    val price_type: PriceType       // IB code for price type last, delayed etc.
-  )
+//  class OptionContractPrice(
+//    //  val price_type: PriceType       // IB code for price type last, delayed etc.
+//    val last_price:  Double?,
+//    val close_price: Double?,
+//    val ask_price:   Double?,
+//    val bid_price:   Double?,
+//    val data_type:   MarketDataType // IB code for market data type, realtime, delayed etc.
+//  )
 
 
   // get_stock_option_price_by_id ------------------------------------------------------------
@@ -300,7 +305,7 @@ abstract class IB {
     option_exchange: String,         // AMEX, different from the stock exchange
     currency:        String,         // USD
     data_type:       MarketDataType? // optional, realtime by default
-  ): OptionContractPrice
+  ): SnapshotPrice
 
   private fun expose_get_stock_option_price_by_id(server: Server) =
     server.get("/api/v1/stock_option_price_by_id") { request ->
@@ -316,16 +321,21 @@ abstract class IB {
   // Minor types -----------------------------------------------------------------------------------
   enum class ContractType { stock, option }
 
-  enum class PriceType(val type: TickType) {
-    last_price    (TickType.LAST),
-    delayed_last  (TickType.DELAYED_LAST),
-    close         (TickType.CLOSE),
-    delayed_close (TickType.DELAYED_CLOSE),
-    open_         (TickType.OPEN),
-    delayed_open  (TickType.DELAYED_OPEN);
-
-    override fun toString(): String = type.field()
-  }
+//  enum class PriceType(val type: TickType) {
+//    last_price    (TickType.LAST),
+//    delayed_last  (TickType.DELAYED_LAST),
+//    close         (TickType.CLOSE),
+//    delayed_close (TickType.DELAYED_CLOSE),
+//    ask           (TickType.ASK),
+//    delayed_ask   (TickType.DELAYED_ASK),
+//    bid           (TickType.BID),
+//    delayed_bid   (TickType.DELAYED_BID),
+//
+//    open_         (TickType.OPEN),
+//    delayed_open  (TickType.DELAYED_OPEN);
+//
+//    override fun toString(): String = type.field()
+//  }
 
   enum class MarketDataType(val code: Int) {
     realtime       (com.ib.client.MarketDataType.REALTIME),

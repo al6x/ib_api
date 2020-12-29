@@ -75,7 +75,7 @@ private fun get_stock_prices(
   symbol:    String,
   currency:  String,
   exchanges: List<String>
-): Dict<String, ErrorneousS<StockPrice>> {
+): Dict<String, ErrorneousS<SnapshotPrice>> {
   val prices = execute_in_parallel(exchanges.map { exchange -> {
     ib.get_stock_price(symbol, exchange, currency, MarketDataType.delayed_frozen)
   }}, threads = IbConfig.http_server_batch_call_thread_pool)
@@ -125,7 +125,7 @@ private fun get_aggregated_option_prices(
   return exchanges_prices
     .map { prices ->
       val errors_count = mutable_dict_of<String, Int>()
-      val price_types_count = mutable_dict_of<PriceType, Int>()
+      val price_types_count = mutable_dict_of<String, Int>()
       var success_count = 0
       for (price in prices) when (price) {
         is Fail -> {
@@ -136,8 +136,17 @@ private fun get_aggregated_option_prices(
         }
         is Success -> {
           success_count += 1
-          val price_type = price.result.price_type
-          price_types_count[price_type] = price_types_count[price_type, 0] + 1
+          val sprice = price.result
+          if (sprice.last_price != null)
+            price_types_count["last_price"] = price_types_count["last_price", 0] + 1
+          if (sprice.close_price != null)
+            price_types_count["close_price"] = price_types_count["close_price", 0] + 1
+          if (sprice.ask_price != null)
+            price_types_count["ask_price"] = price_types_count["ask_price", 0] + 1
+          if (sprice.bid_price != null)
+            price_types_count["bid_price"] = price_types_count["bid_price", 0] + 1
+          // val price_type = price.result.price_type
+          // price_types_count[price_type] = price_types_count[price_type, 0] + 1
         }
       }
 
