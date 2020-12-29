@@ -38,11 +38,12 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       { _, request_id, client ->
         client.cancelPositionsMulti(request_id)
       },
-      { _, errors, events, final_event, _ -> when {
+      { _, errors, events, final_event, _, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
       }},
+      IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
 
@@ -92,11 +93,12 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       { _, request_id, client ->
         client.cancelAccountSummary(request_id)
       },
-      { _, errors, events, final_event, _ -> when {
+      { _, errors, events, final_event, _, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
       }},
+      IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
 
@@ -128,7 +130,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqContractDetails(request_id, contract)
       },
       null,
-      { _, errors, events, final_event, _ -> when {
+      { _, errors, events, final_event, _, _-> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> {
           assert(events.size == 1) { "Wrong events size ${events.size}" }
@@ -136,6 +138,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         }
         else               -> null
       }},
+      IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
     return Converter.parse_stock_contract(cd)
@@ -159,12 +162,13 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqContractDetails(request_id, contract)
       },
       null,
-      { _, errors, events, final_event, _ -> when {
+      { _, errors, events, final_event, _, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
       }},
-      IbConfig.large_timeout_ms
+      IbConfig.large_timeout_ms,
+      IbConfig.recommended_waiting_time
     )
 
     return events.map { event -> when (event) {
@@ -188,11 +192,12 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqContractDetails(request_id, contract)
       },
       null,
-      { _, errors, events, final_event, _ -> when {
+      { _, errors, events, final_event, _, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events.map { event -> event as ContractDetails }
         else               -> null
       }},
+      IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
     return events.map(Converter::parse_stock_contract)
@@ -260,11 +265,12 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqSecDefOptParams(request_id, symbol, "", "STK", id)
       },
       null,
-      { _, errors, events, final_event, _ -> when {
+      { _, errors, events, final_event, _, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
       }},
+      IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
 
@@ -319,12 +325,13 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         client.reqContractDetails(id, contract)
       },
       null,
-      { _, errors, events, final_event, _ -> when {
+      { _, errors, events, final_event, _, _ -> when {
         !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
         final_event        -> events
         else               -> null
       }},
-      IbConfig.large_timeout_ms
+      IbConfig.large_timeout_ms,
+      IbConfig.recommended_waiting_time
     )
 
     // Parsing and sorting events
@@ -415,7 +422,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       { _, request_id, client ->
         client.cancelMktData(request_id)
       },
-      { _, errors, events, _, timed_out ->
+      { _, errors, events, _, waited_recommended_time, timed_out ->
         if (!errors.is_empty()) throw errors.first() // Throwing just the first error for simplicity
 
         // Scanning if events contain price and market data type events
@@ -491,22 +498,44 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         }
 
         val market_data_type_copy = market_data_type
-        if (
-          // Got all prices or timed_out
-          market_data_type_copy != null && (timed_out || (
-            !last_price_events.is_empty() && !close_price_events.is_empty() &&
-            !ask_price_events.is_empty() && !bid_price_events.is_empty()
-          ))
-        ) {
-          SnapshotPrice(
-            last_price  = get_price(last_price_events),
-            close_price = get_price(close_price_events),
-            ask_price   = get_price(ask_price_events),
-            bid_price   = get_price(bid_price_events),
-            data_type   = market_data_type_copy.type
+        if (market_data_type_copy != null) {
+          val last_price  = get_price(last_price_events)
+          val close_price = get_price(close_price_events)
+          val ask_price   = get_price(ask_price_events)
+          val bid_price   = get_price(bid_price_events)
+
+          val approximate_price = approximate_price(
+            last_price = last_price, close_price = close_price, ask_price = ask_price, bid_price = bid_price
           )
+
+          if (
+            // Approximate price should always be available
+            approximate_price != null && (
+              // All price events fired
+              (
+                !last_price_events.is_empty() && !close_price_events.is_empty() &&
+                !ask_price_events.is_empty() && !bid_price_events.is_empty()
+              ) ||
+              // Waited for recommended time and bid/ask or last price available
+              (
+                waited_recommended_time && (
+                  ((ask_price != null) && (bid_price != null)) || last_price != null
+                )
+              )
+            )
+          ) {
+            SnapshotPrice(
+              last_price        = last_price,
+              close_price       = close_price,
+              ask_price         = ask_price,
+              bid_price         = bid_price,
+              approximate_price = approximate_price,
+              data_type         = market_data_type_copy.type
+            )
+          } else null
         } else null
       },
+      IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
   }

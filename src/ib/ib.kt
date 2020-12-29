@@ -152,13 +152,24 @@ abstract class IB {
     }
 
   class SnapshotPrice(
-    // val price_type: PriceType       // IB code for price type last, delayed etc.
-    val last_price:  Double?,
-    val close_price: Double?,
-    val ask_price:   Double?,
-    val bid_price:   Double?,
-    val data_type:   MarketDataType // IB code for market data type, realtime, delayed etc.
+    // val price_type: PriceType          // IB code for price type last, delayed etc.
+    val last_price:        Double?,
+    val close_price:       Double?,
+    val ask_price:         Double?,
+    val bid_price:         Double?,
+    val approximate_price: Double,        // See `approximate_price` function.
+    val data_type:         MarketDataType // IB code for market data type, realtime, delayed etc.
   )
+
+  // Not all prices always available in TWS API, calculating the best guess for the price
+  fun approximate_price(
+    last_price: Double?, close_price: Double?, ask_price: Double?, bid_price: Double?
+  ): Double? = when {
+    bid_price != null && ask_price != null -> (ask_price + bid_price) / 2
+    last_price != null               -> last_price
+    close_price != null              -> close_price
+    else                       -> null
+  }
 
 
   // get_stock_price -------------------------------------------------------------------------------
@@ -352,4 +363,6 @@ abstract class IB {
 // Helpers -----------------------------------------------------------------------------------------
 
 fun Request.get_data_type(key: String) = IB.MarketDataType.value_of(this.get_string(key))
-fun Request.get_data_type_optional(key: String) = this.get_string_optional(key) { IB.MarketDataType.value_of(it) }
+fun Request.get_data_type_optional(key: String) = this.get_string_optional(key) {
+  IB.MarketDataType.value_of(it)
+}

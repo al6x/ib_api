@@ -219,10 +219,11 @@ class Worker(
       // Calculating result
       else {
         // Checking timeout
-        val timed_out = in_process.timer() > in_process.task.timeout_ms
+        val timed_out               = in_process.timer() > in_process.task.timeout_ms
+        val waited_recommended_time = in_process.timer() > in_process.task.recommended_waiting_time_ms
         try {
           val processed_task = in_process.task.executor.calculate_result(
-            in_process.errors, in_process.events, in_process.final_event, timed_out
+            in_process.errors, in_process.events, in_process.final_event, waited_recommended_time, timed_out
           )
 
           if (processed_task != null) {

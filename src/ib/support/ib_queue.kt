@@ -12,7 +12,8 @@ private val log = Log("IB")
 typealias MakeRequest<Input>      = (input: Input, request_id: Int, client: EClientSocket) -> Void
 typealias CancelRequest<Input>    = (input: Input, request_id: Int, client: EClientSocket) -> Void
 typealias CalculateResult<Input, Result> = (
-  input: Input, errors: List<AsyncError>, events: List<Any>, final_event: Boolean, timed_out: Boolean
+  input: Input, errors: List<AsyncError>, events: List<Any>, final_event: Boolean,
+  waited_recommended_time: Boolean, timed_out: Boolean
 ) -> Result?
 
 class TaskExecutor<Input, Result>(
@@ -30,16 +31,18 @@ class TaskExecutor<Input, Result>(
   }
 
   fun calculate_result(
-    errors: List<AsyncError>, events: List<Any>, final_event: Boolean, timed_out: Boolean
+    errors: List<AsyncError>, events: List<Any>, final_event: Boolean,
+    waited_recommended_time: Boolean, timed_out: Boolean
   ): Result? {
-    return calculate_result(input, errors, events, final_event, timed_out)
+    return calculate_result(input, errors, events, final_event, waited_recommended_time, timed_out)
   }
 }
 
 class Task(
-  val type:       String,
-  val executor:   TaskExecutor<*, *>,
-  val timeout_ms: Int
+  val type:                        String,
+  val executor:                    TaskExecutor<*, *>,
+  val recommended_waiting_time_ms: Int,
+  val timeout_ms:                  Int
 )
 
 class TaskInitialState(
@@ -59,30 +62,35 @@ class IBQueue {
   ) -> R): R = synchronized(this) { cb(_inbox, _outbox) }
 
   fun <Input, Result> process(
-    name:             String,
-    input:            Input,
-    make_request:     MakeRequest<Input>,
-    cancel_request:   CancelRequest<Input>?,
-    calculate_result: CalculateResult<Input, Result>,
-    timeout_ms:       Int
+    name:                        String,
+    input:                       Input,
+    make_request:                MakeRequest<Input>,
+    cancel_request:              CancelRequest<Input>?,
+    calculate_result:            CalculateResult<Input, Result>,
+    recommended_waiting_time_ms: Int,
+    timeout_ms:                  Int
   ): Result {
     val results = process_all(
-      name, list_of(input), make_request, cancel_request, calculate_result, timeout_ms
+      name, list_of(input), make_request, cancel_request, calculate_result,
+      recommended_waiting_time_ms, timeout_ms
     )
     assert(results.size == 1) { "invalid results size ${results.size}" }
     return results.first()
   }
 
   fun <Input, Result> process_all(
-    name:             String,
-    inputs:           List<Input>,
-    make_request:     MakeRequest<Input>,
-    cancel_request:   CancelRequest<Input>?,
-    calculate_result: CalculateResult<Input, Result>,
-    timeout_ms:       Int
+    name:                        String,
+    inputs:                      List<Input>,
+    make_request:                MakeRequest<Input>,
+    cancel_request:              CancelRequest<Input>?,
+    calculate_result:            CalculateResult<Input, Result>,
+    recommended_waiting_time_ms: Int,
+    timeout_ms:                  Int
   ): List<Result> {
     val tasks = inputs.map { input ->
-      Task(name, TaskExecutor(input, make_request, cancel_request, calculate_result), timeout_ms)
+      Task(name, TaskExecutor(
+        input, make_request, cancel_request, calculate_result), recommended_waiting_time_ms, timeout_ms
+      )
     }
 
     sync { _, outbox ->
