@@ -73,7 +73,11 @@ proc get_stock_contracts*(
 
 
 # get_stock_price ----------------------------------------------------------------------------------
-type StockPrice* = object
+type SnapshotPrice* = object
+  last_price:         Option[float]
+  close_price:        Option[float]
+  ask_price:          Option[float]
+  bid_price:          Option[float]
   approximate_price*: float
   data_type*:         string # IB code for market data type, realtime, delayed etc.
 
@@ -83,7 +87,7 @@ proc get_stock_price*(
   exchange:   string,    # SMART
   currency:   string,    # USD
   data_type = "realtime" # optional, realtime by default
-): StockPrice =
+): SnapshotPrice =
   let info = fmt"get_stock_price {symbol} {exchange}:{currency} {data_type}"
   log.info info
   let url = ib.build_url(
@@ -91,7 +95,7 @@ proc get_stock_price*(
     { "exchange": exchange, "symbol": symbol, "currency": currency, "data_type": data_type },
   )
   let tic = timer_sec()
-  result = http_get[StockPrice](url, ib.timeout_sec)
+  result = http_get[SnapshotPrice](url, ib.timeout_sec)
   log.info fmt"{info} finished in {tic()}sec"
 
 
@@ -177,9 +181,13 @@ proc get_stock_option_chain_contracts_by_expirations*(
 
 
 # get_stock_options_prices -------------------------------------------------------------------------
-type OptionContractPrice* = object
-  approximate_price*: float
-  data_type*:         string # IB code for market data type, realtime, delayed etc.
+# type OptionContractPrice* = object
+#   last_price:         Option[float]
+#   close_price:        Option[float]
+#   ask_price:          Option[float]
+#   bid_price:          Option[float]
+#   approximate_price*: float
+#   data_type*:         string # IB code for market data type, realtime, delayed etc.
 
 type StockOptionParams* = tuple
   symbol:          string  # MSFT
@@ -193,7 +201,7 @@ type StockOptionParams* = tuple
 proc get_stock_options_prices*(
   ib:         IB,
   contracts:  seq[StockOptionParams],
-): seq[Errorneous[OptionContractPrice]] =
+): seq[Errorneous[SnapshotPrice]] =
   let info = fmt"get_stock_options_prices for {contracts.len} contracts"
   log.info info
   let requests = contracts.map((c) => %* [
@@ -204,7 +212,7 @@ proc get_stock_options_prices*(
     }
   ])
   let tic = timer_sec()
-  result = http_post_batch[JsonNode, OptionContractPrice](
+  result = http_post_batch[JsonNode, SnapshotPrice](
     ib.build_url("/api/v1/call"), requests, ib.timeout_sec
   )
   log.info fmt"{info} finished in {tic()}sec"
@@ -220,7 +228,7 @@ type IdAndExchange* = tuple
 proc get_stock_options_prices_by_ids*(
   ib:         IB,
   contracts:  seq[IdAndExchange]
-): seq[Errorneous[OptionContractPrice]] =
+): seq[Errorneous[SnapshotPrice]] =
   let info = fmt"get_stock_options_prices_by_ids for {contracts.len} ids"
   log.info info
   let requests = contracts.map((c) => %* [
@@ -228,7 +236,7 @@ proc get_stock_options_prices_by_ids*(
     { "id": c.id, "option_exchange": c.option_exchange, "currency": c.currency, "data_type": c.data_type }
   ])
   let tic = timer_sec()
-  result = http_post_batch[JsonNode, OptionContractPrice](
+  result = http_post_batch[JsonNode, SnapshotPrice](
     ib.build_url("/api/v1/call"), requests, ib.timeout_sec
   )
   log.info fmt"{info} finished in {tic()}sec"
@@ -237,7 +245,7 @@ proc get_stock_options_prices_by_ids*(
 # get_stock_options_chain_prices -------------------------------------------------------------------
 type StockOptionContractWithPrice* = object
   contract*: OptionContract
-  price*:    Errorneous[OptionContractPrice]
+  price*:    Errorneous[SnapshotPrice]
 
 type OptionContractPrices* = object
   chain*:                                    OptionChain
@@ -282,14 +290,14 @@ proc get_stock_option_chain_prices*(
   )
   assert ids.len > 0, "thre's no contracts"
 
-  func success_rate(prices: seq[Errorneous[OptionContractPrice]]): float =
+  func success_rate(prices: seq[Errorneous[SnapshotPrice]]): float =
     assert not prices.is_empty, "can't calculate success rate on empty list"
     (prices.count((price) => not price.is_error) / prices.len).round(2)
 
   # Using batches to fail fast, if the success rate is low failing with the first batch
   # without trying the rest of the contracts
   let batches = ids.batches(200)
-  var prices: seq[Errorneous[OptionContractPrice]] = @[]
+  var prices: seq[Errorneous[SnapshotPrice]] = @[]
   for i, batch in batches:
     log.info info & fmt" {i + 1} batch of {batches.len}"
     let bprices = ib.get_stock_options_prices_by_ids(batch)
@@ -356,7 +364,7 @@ let ib = init_ib()
 
 # p ib.get_stock_contracts(symbol = "MSFT").to_json
 
-# p ib.get_stock_price(symbol="MSFT", exchange="ISLAND", currency="USD")
+# p ib.get_stock_price(symbol="MSFT", exchange="ISLAND", currency="USD").to_json
 
 # p ib.get_stock_option_chains(symbol = "MSFT", exchange = "ISLAND", currency = "USD").to_json
 

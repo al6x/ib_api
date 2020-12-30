@@ -152,11 +152,13 @@ abstract class IB {
     }
 
   class SnapshotPrice(
-    val last_price:        Double?,
+    val last_price:        Double?,      // Some prices could be unavailable
     val close_price:       Double?,
     val ask_price:         Double?,
     val bid_price:         Double?,
-    val approximate_price: Double,        // See `approximate_price` function.
+
+    val approximate_price: Double,        // Always available, see `approximate_price` function.
+
     val data_type:         MarketDataType // IB code for market data type, realtime, delayed etc.
   )
 
