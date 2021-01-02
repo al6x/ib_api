@@ -74,10 +74,10 @@ proc get_stock_contracts*(
 
 # get_stock_price ----------------------------------------------------------------------------------
 type SnapshotPrice* = object
-  last_price:         Option[float]
-  close_price:        Option[float]
-  ask_price:          Option[float]
-  bid_price:          Option[float]
+  last_price*:        Option[float]
+  close_price*:       Option[float]
+  ask_price*:         Option[float]
+  bid_price*:         Option[float]
   approximate_price*: float
   data_type*:         string # IB code for market data type, realtime, delayed etc.
 
