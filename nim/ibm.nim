@@ -6,7 +6,7 @@
 #   nim c -r ibm.nim
 
 import system except find
-import basem, timem, httpm, json, math
+import basem, timem, httpm, jsonm, mathm, logm
 
 
 # IB and Config ------------------------------------------------------------------------------------
@@ -48,7 +48,7 @@ proc get_stock_contract*(
   exchange:  string,   # SMART
   currency:  string,   # USD
 ): StockContract =
-  let info = fmt"get_stock_contract {symbol} {exchange}:{currency}"
+  let info = fmt"get_stock_contract '{symbol} {exchange} {currency}'"
   log.info info
   let url = ib.build_url(
     "/api/v1/stock_contract",
@@ -89,7 +89,7 @@ proc get_stock_price*(
   currency:   string,    # USD
   data_type = "realtime" # optional, realtime by default
 ): SnapshotPrice =
-  let info = fmt"get_stock_price {symbol} {exchange}:{currency} {data_type}"
+  let info = fmt"get_stock_price '{symbol} {exchange} {currency}' {data_type}"
   log.info info
   let url = ib.build_url(
     "/api/v1/stock_price",
@@ -117,7 +117,7 @@ proc get_stock_option_chains*(
   exchange:  string,   # SMART
   currency:  string,   # USD
 ): OptionChains =
-  let info = fmt"get_stock_option_chains {symbol} {exchange}:{currency}"
+  let info = fmt"get_stock_option_chains '{symbol} {exchange} {currency}'"
   log.info info
   let url = ib.build_url(
     "/api/v1/stock_option_chains",
@@ -145,7 +145,7 @@ proc get_stock_option_chain_contracts*(
   option_exchange: string,   # AMEX, differnt from the stock exchange
   currency:        string,   # USD
 ): OptionContracts =
-  let info = fmt"get_stock_option_chain_contracts {symbol} {option_exchange}:{currency}"
+  let info = fmt"get_stock_option_chain_contracts '{symbol} {option_exchange} {currency}'"
   log.info info
   let url = ib.build_url(
     "/api/v1/stock_option_chain_contracts",
@@ -164,7 +164,7 @@ proc get_stock_option_chain_contracts_by_expirations*(
   option_exchange: string,      # AMEX, differnt from the stock exchange
   currency:        string,      # USD
 ): seq[OptionContract] =
-  let info = fmt"get_stock_option_chain_contracts_by_expirations {symbol} {option_exchange}:{currency}"
+  let info = fmt"get_stock_option_chain_contracts_by_expirations '{symbol} {option_exchange} {currency}'"
   log.info info
 
   let requests = expirations.map((expiration) => %* [
@@ -262,7 +262,7 @@ proc get_stock_option_chain_prices*(
   data_type        = "realtime",  # optional, realtime by default
   min_success_rate = 0.6
 ): OptionContractPrices =
-  let info = fmt"get_stock_option_chain_prices {symbol} {option_exchange}:{currency} {data_type}"
+  let info = fmt"get_stock_option_chain_prices '{symbol} {option_exchange} {currency}' {data_type}"
   log.info info
   let tic = timer_sec()
 
