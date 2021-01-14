@@ -12,7 +12,7 @@ import basem, timem, httpm, jsonm, mathm, logm
 # IB and Config ------------------------------------------------------------------------------------
 
 let default_ib_api_port* = 8001
-let default_timeout_sec* = 10 * min_sec
+let default_timeout_sec* = 10 * 60
 
 let log = Log(component: "IB")
 
