@@ -29,12 +29,11 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
 
 
   override fun get_portfolio(): List<Portfolio> {
-    get_account_cash();
     log.info("get_portfolio")
     val events = queue.process(
       "get_portfolio",
       null,
-      { _, request_id, client -> client.reqPositionsMulti(request_id, "all", "") },
+      { _, request_id, client -> client.reqPositionsMulti(request_id, "all", null) },
       { _, request_id, client ->
         client.cancelPositionsMulti(request_id)
       },
@@ -46,6 +45,10 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
+
+//    val list = events
+//      .map { e -> e as IBWrapper.ContractWithPositionEvent }
+//      .filter { c -> c.contract.symbol() == "OSU" }
 
     // Grouping events by account
     val accounts = events
@@ -83,9 +86,9 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
 
   // Get accounts cash, all cash converted to USD
   private fun get_account_cash(): Dict<String, Double> {
-    log.info("get_account_summary")
+    log.info("get_account_cash")
     val events = queue.process(
-      "get_portfolio",
+      "get_account_cash",
       null,
       { _, request_id, client ->
         client.reqAccountSummary(request_id, "All", "TotalCashValue")
