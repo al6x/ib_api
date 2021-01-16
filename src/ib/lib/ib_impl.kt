@@ -46,13 +46,13 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       IbConfig.timeout_ms
     )
 
-//    val list = events
-//      .map { e -> e as IBWrapper.ContractWithPositionEvent }
-//      .filter { c -> c.contract.symbol() == "OSU" }
-
     // Grouping events by account
     val accounts = events
-      .map { e -> e as IBWrapper.ContractWithPositionEvent }
+      .map { e -> e as IBWrapper.ContractWithPositionMultiEvent }
+      // The `reqPositionsMulti` returns multiple events for every position, one for position itself
+      // I suppose with `model_code == null` and also multiple events for same position with different
+      // models, with the model name specified in `model_code` - ignoring those duplicates.
+      .filter { c -> c.model_code == null }
       .groupBy { e -> e.account_id }
 
     // Getting cash

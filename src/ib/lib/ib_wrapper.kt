@@ -8,7 +8,6 @@ import ib.IbConfig
 import ib.lib.EventTypes.InternalPriceType
 import ib.lib.EventTypes.InternalSizeType
 import ib.lib.EventTypes.InternalTimeType
-import ib.support.*
 import java.io.IOException
 import javax.swing.SwingUtilities
 import kotlin.concurrent.thread
@@ -379,7 +378,7 @@ class IBWrapper(
     unexpected_emit("displayGroupUpdated")
   }
 
-  data class ContractWithPositionEvent(
+  data class ContractWithPositionMultiEvent(
     val account_id:   String,
     val model_code:   String?,
     val contract:     Contract,
@@ -391,7 +390,7 @@ class IBWrapper(
     average_cost: Double
   ) = catch_errors {
     on_event_sync("positionMulti", request_id,
-      ContractWithPositionEvent(
+      ContractWithPositionMultiEvent(
         account_id!!, model_code, contract!!, position, average_cost
       )
     )

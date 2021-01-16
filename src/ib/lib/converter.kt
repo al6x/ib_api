@@ -6,8 +6,7 @@ import com.ib.client.ContractDetails
 import com.ib.client.Types.Right
 import com.ib.client.Types.SecType
 import ib.IB.*
-import ib.IbConfig
-import ib.lib.IBWrapper.ContractWithPositionEvent
+import ib.lib.IBWrapper.ContractWithPositionMultiEvent
 import kotlin.math.roundToInt
 
 // Converts TWS data into more sane formats.
@@ -28,7 +27,7 @@ object Converter {
 
   // parse_portfolio_position ----------------------------------------------------------------------
   fun parse_and_add_portfolio_position(
-    account_id: String?, chunk: ContractWithPositionEvent
+    account_id: String?, chunk: ContractWithPositionMultiEvent
   ): PortfolioPosition<Any> {
     val symbol = chunk.contract.symbol()
     if (account_id != null && account_id != chunk.account_id) throw Exception(
