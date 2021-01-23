@@ -14,7 +14,7 @@ import basem, timem, httpm, jsonm, mathm, logm
 let default_ib_api_port* = 8001
 let default_timeout_sec* = 10 * 60
 
-let log = Log(component: "IB")
+let log = Log.init("IB")
 
 type IB = object
   base_url:    string
@@ -175,7 +175,7 @@ proc get_stock_option_chain_contracts_by_expirations*(
   result = http_post_batch[JsonNode, seq[OptionContract]](
     ib.build_url("/api/v1/call"), requests, ib.timeout_sec
   )
-    .map((errorneous) => errorneous.get)
+    .map((e) => e.get)
     .flatten
 
   log.info fmt"{info} finished in {tic()}sec"
@@ -202,7 +202,7 @@ type StockOptionParams* = tuple
 proc get_stock_options_prices*(
   ib:         IB,
   contracts:  seq[StockOptionParams],
-): seq[Errorneous[SnapshotPrice]] =
+): seq[Fallible[SnapshotPrice]] =
   let info = fmt"get_stock_options_prices for {contracts.len} contracts"
   log.info info
   let requests = contracts.map((c) => %* [
@@ -229,7 +229,7 @@ type IdAndExchange* = tuple
 proc get_stock_options_prices_by_ids*(
   ib:         IB,
   contracts:  seq[IdAndExchange]
-): seq[Errorneous[SnapshotPrice]] =
+): seq[Fallible[SnapshotPrice]] =
   let info = fmt"get_stock_options_prices_by_ids for {contracts.len} ids"
   log.info info
   let requests = contracts.map((c) => %* [
@@ -246,7 +246,7 @@ proc get_stock_options_prices_by_ids*(
 # get_stock_options_chain_prices -------------------------------------------------------------------
 type StockOptionContractWithPrice* = object
   contract*: OptionContract
-  price*:    Errorneous[SnapshotPrice]
+  price*:    Fallible[SnapshotPrice]
 
 type OptionContractPrices* = object
   chain*:                                    OptionChain
@@ -271,7 +271,7 @@ proc get_stock_option_chain_prices*(
     symbol = symbol, exchange = exchange, currency = currency
   )
   let ochain = chains.largest_desc.find((chain) => chain.option_exchange == option_exchange)
-  assert ochain.is_some, fmt"chain for exhange {option_exchange} not found"
+  if not ochain.is_some: throw(fmt"chain for exhange {option_exchange} not found")
   let chain = ochain.get
 
   # Getting contracts
@@ -289,26 +289,26 @@ proc get_stock_option_chain_prices*(
   let ids = contracts.map((c) =>
     (id: c.id, option_exchange: option_exchange, currency: currency, data_type: data_type)
   )
-  assert ids.len > 0, "thre's no contracts"
+  if ids.is_empty: throw("thre's no contracts")
 
-  func success_rate(prices: seq[Errorneous[SnapshotPrice]]): float =
-    assert not prices.is_empty, "can't calculate success rate on empty list"
-    (prices.count((price) => not price.is_error) / prices.len).round(2)
+  func success_rate(prices: seq[Fallible[SnapshotPrice]]): float =
+    if prices.is_empty: return 0.0
+    else: (prices.count((price) => not price.is_error) / prices.len).round(2)
 
   # Using batches to fail fast, if the success rate is low failing with the first batch
   # without trying the rest of the contracts
   let batches = ids.batches(200)
-  var prices: seq[Errorneous[SnapshotPrice]] = @[]
+  var prices: seq[Fallible[SnapshotPrice]] = @[]
   for i, batch in batches:
     log.info info & fmt" {i + 1} batch of {batches.len}"
     let bprices = ib.get_stock_options_prices_by_ids(batch)
     let sr = success_rate(bprices)
-    assert sr >= min_success_rate, fmt"success rate is too low {sr}"
+    if sr < min_success_rate: throw(fmt"success rate is too low {sr}")
     prices.add bprices
 
   # Preparing result
   result.success_rate = success_rate(prices)
-  assert result.success_rate >= min_success_rate, fmt"success rate is too low {result.success_rate}"
+  if result.success_rate < min_success_rate: throw(fmt"success rate is too low {result.success_rate}")
   result.chain = chain
   result.contracts_asc_by_right_expiration_strike = contracts
     .zip(prices)

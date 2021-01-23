@@ -1,6 +1,7 @@
 package ib.lib
 
 import bon.*
+import bon.thread.sleep
 import com.ib.client.Contract
 import com.ib.client.ContractDetails
 import com.ib.client.Types
@@ -419,7 +420,11 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       type,
       contracts,
       { contract, request_id, client ->
-        if (data_type != null) client.reqMarketDataType(data_type.code)
+        if (data_type != null) {
+          client.reqMarketDataType(data_type.code)
+          // TODO rewrite `process_all` properly via state machine instead of delay
+          // sleep(2000)
+        }
         client.reqMktData(request_id, contract, "", false, false, null)
       },
       { _, request_id, client ->
