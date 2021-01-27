@@ -58,7 +58,7 @@ fun inspect_stock(
         names                        = list.map { c -> c.name }.distinct(),
         exchanges                    = exchanges,
         primary_exchange             = primary_exchange,
-        largest_option_chains_desc   = option_chains.largest_desc,
+        largest_option_chains_desc   = option_chains.largest_desc.to_dict { v -> v.option_exchange },
         stock_prices                 = get_stock_prices(ib, symbol, currency, exchanges),
         option_chain_contracts_count = option_chain_contracts_count,
         option_chain_prices          = option_chain_prices

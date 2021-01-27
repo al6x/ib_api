@@ -191,12 +191,6 @@ class Worker(
       // Ignoring events arrived after the task was finished
       else {
         if (!(event.event::class.simpleName in late_events_that_could_be_ignored)) {
-
-          if (event.ename == "positionMulti") {
-            p(event)
-            System.exit(0)
-          }
-
           log.warn(
             "$worker_id can't handle async event '${event.ename}', no task with request_id ${event.request_id}"
           )

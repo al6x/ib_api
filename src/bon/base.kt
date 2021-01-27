@@ -99,6 +99,16 @@ fun <K, V> Iterable<Pair<K, V>>.to_dict(): Dict<K, V> {
   return dict_of(result)
 }
 
+fun <K, V> List<V>.to_dict(key: (V) -> K): Dict<K, V> {
+  val result = mutable_dict_of<K, V>()
+  for (v in this) {
+    val k = key(v)
+    if (k in result) throw Exception("duplicate key $k")
+    else             result[k] = v
+  }
+  return dict_of(result)
+}
+
 // MutableDict ------------------------------------------------------------------------------------
 class MutableDict<K, V>(
   private val map: MutableMap<K, V>

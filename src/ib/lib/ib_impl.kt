@@ -423,7 +423,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         if (data_type != null) {
           client.reqMarketDataType(data_type.code)
           // TODO rewrite `process_all` properly via state machine instead of delay
-          // sleep(2000)
+          sleep(100)
         }
         client.reqMktData(request_id, contract, "", false, false, null)
       },

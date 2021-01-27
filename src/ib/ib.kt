@@ -37,7 +37,7 @@ abstract class IB {
     val exchanges:                    List<String>,
     //                                     exchange ->  price
     val stock_prices:                 Dict<String, ErrorneousS<SnapshotPrice>>,
-    val largest_option_chains_desc:   List<OptionChain>,
+    val largest_option_chains_desc:   Dict<String, OptionChain>,
     val option_chain_contracts_count: Dict<String, ErrorneousS<Int>>,
     val option_chain_prices:          Dict<String, StockOptionPricesInfo>
   )
