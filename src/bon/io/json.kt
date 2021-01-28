@@ -1,21 +1,20 @@
 package bon.io
 
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
-import com.google.gson.TypeAdapter
-import com.google.gson.TypeAdapterFactory
+import bon.Errorneous
+import bon.ErrorneousS
+import com.google.gson.*
 import com.google.gson.reflect.TypeToken
 import com.google.gson.stream.JsonReader
 import com.google.gson.stream.JsonWriter
+import java.lang.reflect.Type
 
 
 object Json {
   fun to_json(v: Any, pretty: Boolean = true): String {
     val builder = GsonBuilder()
     builder.registerTypeAdapterFactory(EnumTypeAdapterFactory())
+    builder.registerTypeAdapter(Errorneous::class.java, CastToObjectSerializer())
+    builder.registerTypeAdapter(ErrorneousS::class.java, CastToObjectSerializer())
     builder.disableHtmlEscaping()
     if (pretty) builder.setPrettyPrinting()
     val gson: Gson = builder.create()
@@ -41,6 +40,12 @@ object Json {
       // This if applies to all Enums. Change if not wanted.
       return if (Enum::class.java.isAssignableFrom(type.getRawType())) EnumTypeAdapter<T>()
       else null
+    }
+  }
+
+  class CastToObjectSerializer : JsonSerializer<Any> {
+    override fun serialize(o: Any, type: Type, ctx: JsonSerializationContext): JsonElement {
+      return ctx.serialize(o as Any)
     }
   }
 
