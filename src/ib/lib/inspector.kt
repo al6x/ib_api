@@ -30,7 +30,7 @@ fun inspect_stock(
       val exchanges = (list_of(primary_exchange) + secondary_exchanges).distinct()
 
       // Getting option chain for every exchange
-      val option_chains = ib.get_stock_option_chains(symbol, id, currency)
+      val option_chains = ib.get_stock_option_chains(symbol, id)
 
       // Getting option chain contracts for every exchange
       val option_chain_contracts = execute_in_parallel(option_chains.largest_desc.map { chain -> {
@@ -158,97 +158,3 @@ private fun get_aggregated_option_prices(
       )
     }
 }
-
-//private fun get_stock_prices(
-//  ib:        IBImpl,
-//  symbol:    String,
-//  currency:  String,
-//  exchanges: List<String>
-//): Dict<String, List<ErrorneousS<StockPrice>>> {
-//  // Getting stock prices, key = exchange:data_type
-//  val stock_prices_keys = mutable_list_of<Pair<String, MarketDataType>>()
-//  exchanges.distinct().each { exchange ->
-//    MarketDataType.values().each { data_type ->
-//      stock_prices_keys.add(Pair(exchange, data_type))
-//    }
-//  }
-//  val stock_prices_values = execute_in_parallel(stock_prices_keys.map { (exchange, data_type) -> {
-//    ib.get_stock_price(symbol, exchange, currency, data_type)
-//  }}, threads = IbConfig.http_server_batch_call_thread_pool)
-//  return stock_prices_keys
-//    .map { exchange_data_type_key, i ->
-//      Pair(exchange_data_type_key, ErrorneousS.from(stock_prices_values[i]))
-//    }
-//    .group_by { (exchange_data_type_key, _) -> exchange_data_type_key.first } // Grouping by exchange
-//    .map { prices, exchange ->
-//      prices.map { (_, price) -> price }
-//    }
-//}
-
-//private fun get_aggregated_option_prices(
-//  ib:                     IBImpl,
-//  currency:               String,
-//  option_chain:           ErrorneousS<OptionChain>,
-//  option_chain_contracts: ErrorneousS<OptionChainContracts>
-//): ErrorneousS<List<StockOptionPricesInfo>> {
-//  return if (
-//    option_chain is SuccessS && option_chain_contracts is SuccessS
-//  ) {
-//    val contracts = option_chain_contracts.result.contracts_asc_by_right_expiration_strike
-//
-//    val flat_tasks = MarketDataType.values().map { data_type ->
-//      contracts.map { contract ->
-//        val task = {
-//          ib.get_stock_option_price_by_id(
-//            contract.id, option_chain.result.option_exchange, currency, data_type
-//          )
-//        }
-//        Pair(data_type, task)
-//      }
-//    }.flatten()
-//
-//    // Getting all prices at once because it's much faster than getting price for each data_type
-//    // sequentially
-//    val flat_prices = execute_in_parallel(flat_tasks.map { (_, task) -> task },
-//      threads = IbConfig.http_server_batch_call_thread_pool)
-//
-//    val prices = flat_tasks
-//      .map { (data_type, _), i -> Pair(data_type, flat_prices[i]) }
-//      .group_by { (data_type, _) -> data_type }
-//      .map { data_type_prices -> data_type_prices.map { (_, price) -> price } }
-//
-//    val aggregated_prices: List<StockOptionPricesInfo> = prices.toList().map { (data_type, prices) ->
-////      val prices = execute_in_parallel(contracts.map { contract -> {
-////        ib.get_stock_option_price_by_id(contract.id, option_chain.result.option_exchange, currency, data_type)
-////      }}, 100)
-//
-//      val errors_count = mutable_dict_of<String, Int>()
-//      val price_types_count = mutable_dict_of<PriceType, Int>()
-//      var success_count = 0
-//      for (price in prices) when (price) {
-//        is Fail -> {
-//          var message = price.error.message ?: "Unknown error"
-//          // There are lots of `Timeout error after waiting for 20064ms` errors, removing the exact time
-//          message = message.replace(""" \d+ms""".toRegex(), " Xms")
-//          errors_count[message] = errors_count[message, 0] + 1
-//        }
-//        is Success -> {
-//          success_count += 1
-//          val price_type = price.result.price_type
-//          price_types_count[price_type] = price_types_count[price_type, 0] + 1
-//        }
-//      }
-//
-//      StockOptionPricesInfo(
-//        total_count   = prices.size,
-//        success_count = success_count,
-//        errors_count  = dict_of(errors_count),
-//        data_type      = data_type,
-//        price_types   = dict_of(price_types_count)
-//      )
-//    }
-//    SuccessS(aggregated_prices)
-//  } else {
-//    FailS("No option chain")
-//  }
-//}

@@ -4,6 +4,7 @@ import bon.*
 import bon.thread.sleep
 import com.ib.client.Contract
 import com.ib.client.ContractDetails
+import com.ib.client.EClientSocket
 import com.ib.client.Types
 import ib.IB
 import ib.IbConfig
@@ -33,8 +34,10 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     log.info("get_portfolio")
     val events = queue.process(
       "get_portfolio",
-      null,
-      { _, request_id, client -> client.reqPositionsMulti(request_id, "all", null) },
+      "portfolio",
+      { _, request_id, client ->
+        client.reqPositionsMulti(request_id, "all", null)
+      },
       { _, request_id, client ->
         client.cancelPositionsMulti(request_id)
       },
@@ -90,7 +93,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     log.info("get_account_cash")
     val events = queue.process(
       "get_account_cash",
-      null,
+      "account cash",
       { _, request_id, client ->
         client.reqAccountSummary(request_id, "All", "TotalCashValue")
       },
@@ -121,16 +124,18 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
 
 
   override fun get_stock_contract(symbol: String, exchange: String, currency: String): StockContract {
-    log.info("get_stock_contract $symbol $exchange:$currency")
+    log.info("get_stock_contract $symbol $exchange $currency")
+
+    val contract = Contract()
+    contract.symbol(symbol)
+    contract.currency(currency)
+    contract.exchange(exchange)
+    contract.secType(Types.SecType.STK)
+
     val cd = queue.process(
       "get_contract",
-      null,
+      contract,
       { _, request_id, client ->
-        val contract = Contract()
-        contract.symbol(symbol)
-        contract.currency(currency)
-        contract.exchange(exchange)
-        contract.secType(Types.SecType.STK)
         client.reqContractDetails(request_id, contract)
       },
       null,
@@ -152,17 +157,19 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
   override fun get_stock_option_chain_contracts_by_expiration(
     symbol: String, expiration: String, option_exchange: String, currency: String
   ): List<OptionContract> {
-    log.info("get_stock_option_chain_contracts_by_expiration $symbol $expiration $option_exchange:$currency")
+    log.info("get_stock_option_chain_contracts_by_expiration $symbol $expiration $option_exchange $currency")
+
+    val contract = Contract()
+    contract.symbol(symbol)
+    contract.lastTradeDateOrContractMonth(Converter.yyyy_mm_dd_to_yyyymmdd(expiration))
+    contract.currency(currency)
+    contract.exchange(option_exchange)
+    contract.secType(Types.SecType.OPT)
+
     val events = queue.process(
       "get_stock_option_chain_contracts",
-      null,
+      contract,
       { _, request_id, client ->
-        val contract = Contract()
-        contract.symbol(symbol)
-        contract.lastTradeDateOrContractMonth(Converter.yyyy_mm_dd_to_yyyymmdd(expiration))
-        contract.currency(currency)
-        contract.exchange(option_exchange)
-        contract.secType(Types.SecType.OPT)
         client.reqContractDetails(request_id, contract)
       },
       null,
@@ -186,13 +193,15 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
 
   override fun get_stock_contracts(symbol: String): List<StockContract> {
     log.info("get_stock_contracts $symbol")
+
+    val contract = Contract()
+    contract.symbol(symbol)
+    contract.secType(Types.SecType.STK)
+
     val events = queue.process(
       "get_contracts",
-      null,
+      contract,
       { _, request_id, client ->
-        val contract = Contract()
-        contract.symbol(symbol)
-        contract.secType(Types.SecType.STK)
         client.reqContractDetails(request_id, contract)
       },
       null,
@@ -216,7 +225,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
   override fun get_stock_price(
     symbol: String, exchange: String, currency: String, data_type: MarketDataType?
   ): SnapshotPrice {
-    log.info("get_stock_price $symbol $exchange:$currency $data_type")
+    log.info("get_stock_price $symbol $exchange $currency $data_type")
     val contract = Contract()
     contract.symbol(symbol)
     contract.secType(Types.SecType.STK)
@@ -229,7 +238,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
   override fun get_stock_price_by_id(
     id: Int, exchange: String, currency: String, data_type: MarketDataType?
   ): SnapshotPrice {
-    log.info("get_stock_price_by_id $id $exchange:$currency $data_type")
+    log.info("get_stock_price_by_id $id $exchange $currency $data_type")
 
     val contract = Contract()
     contract.conid(id)
@@ -241,32 +250,32 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
 
 
   private fun get_stock_price(contract: Contract, data_type: MarketDataType?): SnapshotPrice {
-    return get_last_price("get_last_stock_price", contract, data_type)
+    return get_last_price("get_last_stock_price", contract, data_type ?: MarketDataType.realtime)
   }
 
 
   override fun get_stock_option_chains(
     symbol: String, exchange: String, currency: String
   ): OptionChains {
-    log.info("get_stock_option_chain $symbol $exchange:$currency")
+    log.info("get_stock_option_chain $symbol $exchange $currency")
 
     // Getting underlying stock contract
     val ucontract: StockContract = get_stock_contract(symbol, exchange, currency)
 
-    return get_stock_option_chains(symbol, ucontract.id, currency)
+    return get_stock_option_chains(symbol, ucontract.id)
   }
 
   fun get_stock_option_chains(
-    symbol: String, id: Int, currency: String
+    symbol: String, underlying_id: Int
   ): OptionChains {
     // Getting expirations and strikes
     val events = queue.process(
       "get_stock_option_chains",
-      "",
+      Pair(symbol, underlying_id),
       { _, request_id, client ->
         // If exchange provide explicitly it's not returned, seems like it's either bug
         // or the parameter means something else.
-        client.reqSecDefOptParams(request_id, symbol, "", "STK", id)
+        client.reqSecDefOptParams(request_id, symbol, "", "STK", underlying_id)
       },
       null,
       { _, errors, events, final_event, _, _ -> when {
@@ -314,18 +323,19 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
   override fun get_stock_option_chain_contracts(
     symbol: String, option_exchange: String, currency: String
   ): OptionContracts {
-    log.info("get_stock_option_chain_contracts $symbol $option_exchange:$currency")
+    log.info("get_stock_option_chain_contracts $symbol $option_exchange $currency")
+
+    val contract = Contract()
+    contract.symbol(symbol)
+    contract.secType(Types.SecType.OPT)
+    contract.currency(currency)
+    contract.exchange(option_exchange)
 
     // Getting events
     val events = queue.process(
       "get_option_contracts",
-      null,
+      contract,
       { _, id, client ->
-        val contract = Contract()
-        contract.symbol(symbol)
-        contract.secType(Types.SecType.OPT)
-        contract.currency(currency)
-        contract.exchange(option_exchange)
         client.reqContractDetails(id, contract)
       },
       null,
@@ -365,7 +375,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     currency:        String,         // USD
     data_type:       MarketDataType? // optional, realtime by default
   ): SnapshotPrice {
-    log.info("get_stock_option_price $symbol-$right-$expiration-$strike $option_exchange:$currency $data_type")
+    log.info("get_stock_option_price $symbol-$right-$expiration-$strike $option_exchange $currency $data_type")
 
     val contract = Contract()
     contract.secType(Types.SecType.OPT)
@@ -376,8 +386,8 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     contract.exchange(option_exchange)
     contract.currency(currency)
 //    contract.multiplier("100")
-    
-    return get_last_price("get_stock_option_price", contract, data_type)
+
+    return get_last_price("get_stock_option_price", contract, data_type ?: MarketDataType.realtime)
   }
 
 
@@ -387,7 +397,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     currency:        String,         // USD
     data_type:       MarketDataType? // optional, realtime by default
   ): SnapshotPrice {
-    log.info("get_stock_option_price_by_id $id $option_exchange:$currency $data_type")
+    log.info("get_stock_option_price_by_id $id $option_exchange $currency $data_type")
 
     // // Querying option contract ids if it's not provided, it's very slow operation.
     // if (option_contracts_ids_optional == null) {
@@ -402,48 +412,72 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     contract.currency(currency)
     contract.conid(id)
     contract.secType(Types.SecType.OPT)
-    return get_last_price("get_stock_option_price_by_id", contract, data_type)
+    return get_last_price("get_stock_option_price_by_id", contract, data_type ?: MarketDataType.realtime)
   }
 
+
   private fun get_last_price(
-    type: String, contract: Contract, data_type: MarketDataType?
+    type: String, contract: Contract, data_type: MarketDataType
   ): SnapshotPrice {
     val prices = get_last_prices(type, list_of(contract), data_type)
     assert(prices.size == 1) { "wrong size for prices ${prices.size}" }
     return prices[0]
   }
 
+
   private fun get_last_prices(
-    type: String, contracts: List<Contract>, data_type: MarketDataType?
+    name: String, contracts: List<Contract>, data_type: MarketDataType
   ): List<SnapshotPrice> {
-    return queue.process_all(
-      type,
-      contracts,
-      { contract, request_id, client ->
-        if (data_type != null) {
-          client.reqMarketDataType(data_type.code)
-          // TODO rewrite `process_all` properly via state machine instead of delay
+    class GetLastPriceExecutor(contract: Contract) : Executor<Contract, SnapshotPrice> (contract) {
+      var state = "make_requests"
+
+      override fun step(
+        request_id: Int, client: () -> EClientSocket,
+        errors: List<AsyncError>, events: List<Any>, final_event: Boolean,
+        waited_recommended_time: Boolean, timed_out: Boolean
+      ): SnapshotPrice? = when (state) {
+        "make_requests" -> {
+          client().reqMarketDataType(data_type.code)
           sleep(100)
+          client().reqMktData(request_id, task, "", false, false, null)
+          state = "wait_for_prices"
+          null
         }
-        client.reqMktData(request_id, contract, "", false, false, null)
-      },
-      { _, request_id, client ->
-        client.cancelMktData(request_id)
-      },
-      { _, errors, events, _, waited_recommended_time, timed_out ->
+        // "wait_for_data_type_event" -> {
+        //   if (!errors.is_empty()) throw errors.first() // Throwing just the first error for simplicity
+        //   val found = events.find { event -> when (event) {
+        //     is IBWrapper.MarketDataTypeEvent -> event.type.code == data_type.code
+        //     else                             -> false
+        //   } }
+        //   if (found != null) {
+        //     state = "wait_for_prices"
+        //   }
+        //   null
+        // }
+        "wait_for_prices" -> wait_for_prices(errors, events, waited_recommended_time)
+        else              -> throw java.lang.Exception("invalid state $state")
+      }
+
+      override fun cancel(request_id: Int, client: () -> EClientSocket): Void {
+        client().cancelMktData(request_id)
+      }
+
+      private fun wait_for_prices(
+        errors: List<AsyncError>, events: List<Any>, waited_recommended_time: Boolean
+      ): SnapshotPrice? {
         if (!errors.is_empty()) throw errors.first() // Throwing just the first error for simplicity
 
-        // Scanning if events contain price and market data type events
+        // Scanning if events contain price events
         val last_price_events  = mutable_list_of<IBWrapper.PriceEvent>()
         val close_price_events = mutable_list_of<IBWrapper.PriceEvent>()
         val ask_price_events   = mutable_list_of<IBWrapper.PriceEvent>()
         val bid_price_events   = mutable_list_of<IBWrapper.PriceEvent>()
-        var market_data_type:   IBWrapper.MarketDataTypeEvent? = null
 
         val last_price_event_types = set_of(
           EventTypes.InternalPriceType.LAST,
           EventTypes.InternalPriceType.DELAYED_LAST
         )
+
         val close_price_event_types = set_of(
           EventTypes.InternalPriceType.CLOSE,
           EventTypes.InternalPriceType.DELAYED_CLOSE
@@ -459,33 +493,34 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
           EventTypes.InternalPriceType.DELAYED_BID
         )
 
-        // Reversing to prefer the latest events
-        events.each { event -> when (event) {
+        // If specified data type event occured
+        // var data_type_event_occured = false
+
+        for (event in events) when (event) {
           is IBWrapper.PriceEvent -> {
-            if (market_data_type != null) {
-              when (event.type) {
-                in last_price_event_types  -> last_price_events.add(event)
-                in close_price_event_types -> close_price_events.add(event)
-                in ask_price_event_types   -> ask_price_events.add(event)
-                in bid_price_event_types   -> bid_price_events.add(event)
-                else                       -> {
-                  // Ignoring
-                }
+            // if (data_type_event_occured) {
+            when (event.type) {
+              in last_price_event_types  -> last_price_events.add(event)
+              in close_price_event_types -> close_price_events.add(event)
+              in ask_price_event_types   -> ask_price_events.add(event)
+              in bid_price_event_types   -> bid_price_events.add(event)
+              else                       -> {
+                // Ignoring
               }
-            } else {
-              // Ignoring events arived before the market data event
             }
+            // }
           }
           is IBWrapper.MarketDataTypeEvent -> {
-            val market_data_type_copy = market_data_type
-            if (market_data_type_copy != null) assert(market_data_type_copy.type == event.type) {
-              "Two different MarketDataTypes ${market_data_type_copy.type} and ${event.type}"
-            }
-            market_data_type = event
-
-            // There could be multiple market data type events, using the event that occured
-            // right before the found price and ignoring other events.
-            // if (price_event != null && market_data_type == null) market_data_type = event
+            // Ignoring, it works in a very strange way
+            //
+            // if (data_type_event_occured) {
+            //   if (event.type.code != data_type.code) throw Exception(
+            //     "Wrong MarketDataType event occured ${event.type}"
+            //   )
+            // } else {
+            //   // Ignoring all events before the specified MarketDataType event occured
+            //   if (event.type.code == data_type.code) data_type_event_occured = true
+            // }
           }
           is IBWrapper.PriceTimestampEvent -> {
             // Ignoring for now, not sure how it works, it's not always available
@@ -497,7 +532,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
             // Ignoring for now
           }
           else -> throw Exception("wrong price event ${event::class}")
-        }}
+        }
 
         fun get_price(events: List<IBWrapper.PriceEvent>): Double? {
           // Checking that price > 0, the Interactive Brokers may respond with `0` or `-1`
@@ -505,84 +540,46 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
           return events.find { it.price > 0 } ?.price
         }
 
-        val market_data_type_copy = market_data_type
-        if (market_data_type_copy != null) {
-          val last_price  = get_price(last_price_events)
-          val close_price = get_price(close_price_events)
-          val ask_price   = get_price(ask_price_events)
-          val bid_price   = get_price(bid_price_events)
+        // Parsing found prices
+        val last_price  = get_price(last_price_events)
+        val close_price = get_price(close_price_events)
+        val ask_price   = get_price(ask_price_events)
+        val bid_price   = get_price(bid_price_events)
 
-          val approximate_price = approximate_price(
-            last_price = last_price, close_price = close_price, ask_price = ask_price, bid_price = bid_price
+        val approximate_price = approximate_price(
+          last_price = last_price, close_price = close_price, ask_price = ask_price, bid_price = bid_price
+        )
+
+        return if (
+          // Approximate price should always be available
+          approximate_price != null && (
+            // All price events fired
+            (
+              !last_price_events.is_empty() && !close_price_events.is_empty() &&
+              !ask_price_events.is_empty() && !bid_price_events.is_empty()
+            ) ||
+            // Waited for recommended time and has some price
+            waited_recommended_time
           )
-
-          if (
-            // Approximate price should always be available
-            approximate_price != null && (
-              // All price events fired
-              (
-                !last_price_events.is_empty() && !close_price_events.is_empty() &&
-                !ask_price_events.is_empty() && !bid_price_events.is_empty()
-              ) ||
-              // Waited for recommended time and has some price
-              waited_recommended_time
-            )
-          ) {
-            SnapshotPrice(
-              last_price        = last_price,
-              close_price       = close_price,
-              ask_price         = ask_price,
-              bid_price         = bid_price,
-              approximate_price = approximate_price,
-              data_type         = market_data_type_copy.type
-            )
-          } else null
+        ) {
+          SnapshotPrice(
+            last_price        = last_price,
+            close_price       = close_price,
+            ask_price         = ask_price,
+            bid_price         = bid_price,
+            approximate_price = approximate_price,
+            data_type         = data_type
+          )
         } else null
-      },
+      }
+    }
+
+    return queue.process_all(
+      name,
+      contracts,
+      { contract -> GetLastPriceExecutor(contract) },
       IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
   }
-
-  //  override fun get_stock_option_prices(
-//    symbol:                     String,
-//    option_contracts_ids: List<Int>,
-//    exchange:                 String?,
-//    currency:                 String?
-//  ): OptionContractPrices {
-//    val exc = exchange ?: default_exchange
-//    val cur = currency ?: default_currency
-//
-//    // // Querying option contract ids if it's not provided, it's very slow operation.
-//    // if (option_contracts_ids_optional == null) {
-//    //   option_contracts_ids_optional = map(
-//    //     get_stock_option_contracts(symbol, exchange, currency).contracts_asc_by_right_expiration_strike,
-//    //     (contract) -> contract.id
-//    //   );
-//    // }
-//
-//    val inputs = option_contracts_ids.map { id ->
-//      val c = Contract()
-//      c.conid(id)
-//      c.symbol(symbol)
-//      c.secType(Types.SecType.OPT)
-//      c.currency(cur)
-//      c.exchange(exc)
-//      c
-//    }
-//    val prices = get_last_prices("get_stock_option_prices", inputs)
-//    return OptionContractPrices(
-//      symbol   = symbol,
-//      exchange = exc,
-//      currency = cur,
-//      prices   = prices.map { price, i ->
-//        OptionContractPrice(
-//          id      = option_contracts_ids[i],
-//          price         = price.price,
-//          data_type      = price.ib_market_data_type,
-//          price_type = price.price_type
-//        )
-//      }
-//    )
-//  }
 }

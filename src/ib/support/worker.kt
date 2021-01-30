@@ -20,39 +20,31 @@ class WorkerQueue {
   fun add_sync(event: IbWrapperEvent): Void = synchronized(this) { _events.add(event) }
 }
 
-class TaskInProcessState(
-  val task:       Task,
-  val initial:    TaskInitialState,
-  val request_id: Int
+class ActiveRequest<Task, Result>(
+  val id:         Int,
+  val request:    Request<Task, Result>,
+  val executor:   Executor<Task, Result>
 ) {
   val timer          = timer_ms()
-  val special_errors = LinkedList<Exception>()
   val errors         = LinkedList<AsyncError>()
   val events         = LinkedList<Any>()
   var final_event    = false
+  val fatal_errors   = LinkedList<Exception>()
+  var result:          Result? = null
 
-  override fun toString(): String = "task_${task.type}_${request_id}_${initial.tried}"
+  override fun toString(): String = "$request request_id $id"
 }
 
-class TaskProcessedState(
-  val task:       Task,
-  val in_process: TaskInProcessState,
-  val result:     Errorneous<*>
-) {
-  override fun toString(): String {
-    return "task_${task.type}_${in_process.request_id}_${in_process.initial.tried}"
-  }
-}
 
 // Worker has a separate connection to TWS and executes tasks (requests).
 class Worker(
   private val ib_queue:   IBQueue,
-          val port:       Int,
-          val worker_id:  Int
+  val port:       Int,
+  val worker_id:  Int
 ) {
-  private val wrapper_queue = WorkerQueue()
-  private val tasks_by_rid  = mutable_dict_of<Int, TaskInProcessState>()
-  private val rate_limiter  = RateLimiter(IbConfig.requests_per_second_limit)
+  private val wrapper_queue   = WorkerQueue()
+  private val active_requests = mutable_dict_of<Int, ActiveRequest<Any, Any>>()
+  private val rate_limiter    = RateLimiter(IbConfig.requests_per_second_limit)
 
   private var is_first_connection            = true
   private var _wrapper:           IBWrapper? = null
@@ -68,10 +60,11 @@ class Worker(
   init {
     thread(isDaemon = true, name = "worker_$worker_id", block = ::run)
   }
+
   private fun run() {
     while (true) {
       // Waiting untill there is something to process
-      if ((ib_queue.sync { _, outbox -> outbox.size == 0 }) && (tasks_by_rid.size == 0)) {
+      if ((ib_queue.sync { requests, _ -> requests.size == 0 }) && (active_requests.size == 0)) {
         sleep(IbConfig.delay_ms)
         continue
       }
@@ -80,7 +73,7 @@ class Worker(
       val wrapper = get_wrapper_without_creating()
       if (
         (wrapper != null) &&
-        (tasks_by_rid.size == 0) && // There's no current tasks
+        (active_requests.size == 0) && // There's no current tasks
         // (finished_tasks.any { processed -> processed.result is Fail }) &&
         ((System.currentTimeMillis() - wrapper.created_at_ms) > 10 * min_ms)
       ) {
@@ -88,60 +81,82 @@ class Worker(
         destroy_wrapper("planned reconnection")
       }
 
-      val tasks_to_process = get_tasks_to_process()
+      add_new_requests()
 
-      make_requests(tasks_to_process)
+      step()
 
       collect_and_process_events_from_wrapper()
 
-      val processed_tasks = calculate_results_for_worker_tasks()
+      val finished = cancel_processed_requests()
 
-      val finished_tasks  = cancel_processed_tasks(processed_tasks)
-
-      send_results_to_ib(finished_tasks)
+      send_results_back(finished)
 
       sleep(IbConfig.thread_sleep_ms)
     }
   }
 
 
-  private fun get_tasks_to_process(): List<TaskInitialState> {
-    // Getting tasks to process
-    val to_process = mutable_list_of<TaskInitialState>()
+  private fun add_new_requests(): Void {
+    // Getting new requests
+    val new_requests = mutable_list_of<ActiveRequest<Any, Any>>()
     val batch_size = 10; var i = 0
     while (
       (i < batch_size) &&
-      ((to_process.size + tasks_by_rid.size) < IbConfig.parallel_requests_limit_per_worker)
+      ((new_requests.size + active_requests.size) < IbConfig.parallel_requests_limit_per_worker)
     ) {
-      val initial_task = ib_queue.sync({ _, outbox ->
-        if (outbox.size > 0) outbox.removeFirst() else null
+      val request = ib_queue.sync({ requests, _ ->
+        if (requests.size > 0) requests.removeFirst() else null
       }) ?: break
-      to_process.add(initial_task)
+      new_requests.add(ActiveRequest(
+        id       = next_request_id_sync(),
+        request  = request,
+        executor = request.build_executor(request.task)
+      ))
       i++
     }
-    return to_process
+
+    // Adding to the active requests
+    new_requests.each { active ->
+      active_requests[active.id] = active
+      log.info("$worker_id running $active")
+    }
   }
 
 
-  private fun make_requests(to_process: List<TaskInitialState>) {
-    to_process.each { initial_state ->
-      val in_process = TaskInProcessState(initial_state.task, initial_state, next_request_id_sync())
-      tasks_by_rid[in_process.request_id] = in_process
-      rate_limiter.sleep_if_needed {
-        when (val wrapper = get_wrapper()) {
-          is Fail    -> {
-            log.error("$worker_id $in_process can't start as there's no TWS connection")
-            in_process.special_errors.add(wrapper.error)
-          }
-          is Success -> {
-            try {
-              log.info("$worker_id $in_process making request on ${wrapper.result.id}")
-              assert(tasks_by_rid.size <= IbConfig.parallel_requests_limit_per_worker)
-              in_process.task.executor.make_request(in_process.request_id, wrapper.result.get_client())
-            } catch (e: Exception) {
-              log.error("$worker_id $in_process starting request on ${wrapper.result.id}", e);
-              in_process.special_errors.add(e)
-            }
+  private fun step() {
+    assert(active_requests.size <= IbConfig.parallel_requests_limit_per_worker)
+
+    for (active in active_requests.values) {
+      // Result could be already set as error if error occured in wrapper
+      assert(active.fatal_errors.is_empty() && active.result == null)
+
+      when (val wrapper = get_wrapper()) {
+        is Fail    -> {
+          log.error("$worker_id can't run $active as there's no TWS connection")
+          active.fatal_errors.add(wrapper.error)
+        }
+        is Success -> {
+          try {
+            val timed_out               = active.timer() > active.request.timeout_ms
+            val waited_recommended_time = active.timer() > active.request.recommended_waiting_time_ms
+
+            active.result = active.executor.step(
+              request_id              = active.id,
+              client                  = { -> rate_limiter.sleep_if_needed { wrapper.get().get_client() } },
+              errors                  = active.errors,
+              events                  = active.events,
+              final_event             = active.final_event,
+              waited_recommended_time = waited_recommended_time,
+              timed_out               = timed_out
+            )
+
+            // Checking timeout
+            if (timed_out && active.result == null) active.fatal_errors.add(
+              Exception("Timeout error after waiting for ${active.timer() / 1000}sec")
+            )
+          } catch (e: Exception) {
+            log.error("$worker_id running $active on ${wrapper.result.id}", e)
+            active.fatal_errors.add(e)
           }
         }
       }
@@ -151,46 +166,40 @@ class Worker(
 
   private fun collect_and_process_events_from_wrapper() {
     val events = wrapper_queue.take_all_sync()
-    val (task_events, special_events) = events.partition { event -> event.request_id >= 0 }
+    val (task_events, unexpected_events) = events.partition { event -> event.request_id >= 0 }
 
     // Processing special events
-    var special_error_added = false
-    special_events.each { event ->
-      // If it's a special error failing all the current tasks
+    unexpected_events.each { event ->
+      // If it's an unexpected error failing all the current tasks
       if (event.event is Exception) {
-        if (!special_error_added ) {
-          tasks_by_rid.values.each { in_process -> in_process.special_errors.add(event.event) }
-          // Adding only the first error for simplicity
-          special_error_added = true
-        }
+        active_requests.values.each { active -> active.fatal_errors.add(event.event) }
       } else {
-        log.warn("$worker_id unexpected async event ${event.ename}")
+        log.warn("$worker_id received unexpected async event ${event.ename}")
       }
     }
 
     // Processing task events
     task_events.each { event ->
-      val in_process = tasks_by_rid[event.request_id]
-      if (in_process != null) {
+      val active = active_requests[event.request_id]
+      if (active != null) {
         assert(worker_id == event.worker_id)
 
         // Parsing event
         when (val e = event.event) {
-          is AsyncError -> in_process.errors.add(e)
-          is Exception  -> in_process.special_errors.add(e)
+          is AsyncError -> active.errors.add(e)
+          is Exception  -> active.fatal_errors.add(e)
           is FinalEvent -> {
-            if (in_process.final_event) in_process.special_errors.add(
-              Exception("final event ${event.ename} set more than once")
-            )
-            in_process.final_event = true
+            if (active.final_event) {
+              active.fatal_errors.add(Exception("final event ${event.ename} set more than once"))
+            }
+            active.final_event = true
           }
-          else          -> in_process.events.add(e)
+          else          -> active.events.add(e)
         }
-
       }
       // Ignoring events arrived after the task was finished
       else {
-        if (!(event.event::class.simpleName in late_events_that_could_be_ignored)) {
+        if (event.event::class.simpleName !in late_events_that_could_be_ignored) {
           log.warn(
             "$worker_id can't handle async event '${event.ename}', no task with request_id ${event.request_id}"
           )
@@ -200,116 +209,77 @@ class Worker(
   }
 
 
-  private fun calculate_results_for_worker_tasks(): List<TaskProcessedState> {
-    val processed = mutableListOf<TaskProcessedState>()
-    for (in_process in tasks_by_rid.values) {
-      // Checking special errors
-      if (!in_process.special_errors.is_empty()) {
-        // Adding only the first error for simplicity
-        processed.add(TaskProcessedState(
-          in_process.task, in_process, Fail<Any>(in_process.special_errors.first())
-        ))
-      }
-      // Calculating result
-      else {
-        // Checking timeout
-        val timed_out               = in_process.timer() > in_process.task.timeout_ms
-        val waited_recommended_time = in_process.timer() > in_process.task.recommended_waiting_time_ms
-        try {
-          val processed_task = in_process.task.executor.calculate_result(
-            in_process.errors, in_process.events, in_process.final_event, waited_recommended_time, timed_out
-          )
-
-          if (processed_task != null) {
-            processed.add(
-              TaskProcessedState(in_process.task, in_process, Success(processed_task))
-            )
-          } else if (timed_out) {
-//            val processed_task = in_process.task.executor.calculate_result(
-//              in_process.errors, in_process.events, in_process.final_event, waited_recommended_time, timed_out
-//            )
-
-            val error = Exception("Timeout error after waiting for ${in_process.timer() / 1000}sec")
-            processed.add(
-              TaskProcessedState(in_process.task, in_process, Fail<Any>(error))
-            )
-          }
-        } catch (e: Exception) {
-          processed.add(TaskProcessedState(in_process.task, in_process, Fail<Any>(e)))
-        }
-      }
+  private fun cancel_processed_requests(): List<ActiveRequest<Any, Any>> {
+    val processed_requests = active_requests.values.filter { active ->
+      active.result != null || !active.fatal_errors.is_empty()
     }
 
-    return processed
-  }
-
-
-  fun cancel_processed_tasks(processed: List<TaskProcessedState>): List<TaskProcessedState> {
-    val processed_states = processed.map { processed_task ->
-      rate_limiter.sleep_if_needed {
-        when (val wrapper = get_wrapper()) {
-          // If canceling task failed recording the error
-          is Fail    -> {
-            log.error("$worker_id $processed_task can't cancel as there's no TWS connection")
-            TaskProcessedState(
-              processed_task.task, processed_task.in_process, Fail<Any>(wrapper.error)
-            )
-          }
-          is Success -> {
-            try {
-              log.info("$worker_id $processed_task cancel request on ${wrapper.result.id}")
-              val cancel = {
-                processed_task.task.executor.cancel_request(
-                  processed_task.in_process.request_id, wrapper.result.get_client()
-                )
+    // Cancelling processed requests
+    processed_requests.map { processed ->
+      when (val wrapper = get_wrapper()) {
+        is Fail    -> {
+          log.error("$worker_id can't cancel $processed as there's no TWS connection")
+          processed.fatal_errors.add(wrapper.error)
+        }
+        is Success -> {
+          try {
+            log.info("$worker_id canceling $processed on ${wrapper.result.id}")
+            processed.executor.cancel(
+              request_id              = processed.id,
+              client                  = { ->
+                sleep(10) // Waiting a little bit before canceling, just in case
+                rate_limiter.sleep_if_needed { wrapper.get().get_client() }
               }
-
-              // Waiting a little bit before canceling
-              sleep(10)
-              cancel()
-              sleep(10)
-
-              processed_task
-            } catch (e: Exception) {
-              log.error("$worker_id $processed_task error during cance request on ${wrapper.result.id}", e)
-              TaskProcessedState(processed_task.task, processed_task.in_process, Fail<Any>(e))
-            }
+            )
+          } catch (e: Exception) {
+            log.error("$worker_id error during canceling $processed on ${wrapper.result.id}", e)
+            processed.fatal_errors.add(e)
           }
         }
       }
     }
 
-    // Removing processed tasks
-    processed.each { processed_task -> tasks_by_rid.remove(processed_task.in_process.request_id) }
+    // Removing processed requests
+    processed_requests.each { processed -> active_requests.remove(processed.id) }
 
-    return processed_states
+    return processed_requests
   }
 
-  fun send_results_to_ib(finished_tasks: List<TaskProcessedState>) {
-    // Sending results to IB
-    ib_queue.sync { inbox, outbox ->
-      finished_tasks.each { processed ->
-        val tried = processed.in_process.initial.tried + 1
-        if ((processed.result is Fail) && (tried < IbConfig.retry_count) && should_retry(processed.result)) {
-          // Retrying
-          log.info(
-            "$worker_id $processed failed in ${processed.in_process.timer()}ms and " +
-            "will be re-tried, putting it back to queue"
-          )
-          outbox.add(TaskInitialState(processed.task, tried))
-        } else {
-          val time = "in ${processed.in_process.timer()}ms"
-          when (processed.result) {
-            is Success -> log.info(
-              "$worker_id ${processed.task.type} success $time"
-            )
-            is Fail    -> log.warn(
-              "$worker_id ${processed.task.type} error '${processed.result.error}' $time"
-            )
-          }
 
-          inbox[processed.task] = processed.result
+  fun send_results_back(finished_requests: List<ActiveRequest<Any, Any>>) {
+    val to_retry = mutable_list_of<Request<Any, Any>>()
+    val to_results = mutable_dict_of<Pair<String, Any>, Errorneous<*>>()
+
+    for (finished in finished_requests) {
+      val key = Pair(finished.request.name, finished.request.task)
+      if (finished.fatal_errors.is_empty()) {
+        // Success
+        assert(finished.result != null)
+        log.info("$worker_id successfully finished ${finished.request.name} in ${finished.timer()}ms")
+        to_results[key] = Success(finished.result)
+      } else {
+        val tried = finished.request.try_n
+        if ((tried < IbConfig.retry_count) && should_retry(finished.fatal_errors.first)) {
+          // Error, retrying
+          log.info("$worker_id failed $finished in ${finished.timer()}ms and will be re-tried")
+          val request = finished.request
+          request.try_n += 1
+          to_retry.add(request)
+        } else {
+          // Error
+          val error = finished.fatal_errors.first // Reporting just first error
+          log.warn("$worker_id failed ${finished.request.name}, ${error}, in ${finished.timer()}ms")
+          to_results[key] = Fail<Any>(error)
         }
+      }
+    }
+
+    // Sending results back
+    ib_queue.sync { requests, results ->
+      requests.add_all(to_retry)
+      for ((key, result) in to_results) {
+        assert(key !in results)
+        results[key] = result
       }
     }
   }
@@ -345,11 +315,13 @@ class Worker(
       this._wrapper = null
     }
   }
+
+  override fun toString(): String = "worker_$worker_id"
 }
 
-fun should_retry(e: Fail<*>): Boolean {
-  return !(error_type(e.error.message ?: "") in set_of(
-//    "no_subscription",
+fun should_retry(e: Exception): Boolean {
+  return error_type(e.message ?: "") !in set_of(
+    // "no_subscription",
     "not_found"
-  ))
+  )
 }

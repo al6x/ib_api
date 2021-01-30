@@ -252,10 +252,6 @@ abstract class IB {
     val right:      String  // "put" or "call"
   )
 
-//  class OptionChainContracts(
-//    val contracts_asc_by_right_expiration_strike: List<OptionContract> // Sorted
-//  )
-
 
   // get_stock_option_chain --------------------------------------------------------------------
   abstract fun get_stock_option_chain_contracts_by_expiration(
