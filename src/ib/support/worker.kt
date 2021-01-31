@@ -6,7 +6,8 @@ import ib.IbConfig
 import ib.lib.*
 import java.util.*
 import kotlin.concurrent.thread
-import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.max
 
 
 private val log = Log("Worker")
@@ -98,12 +99,13 @@ class Worker(
 
 
   private fun add_new_requests(): Void {
+    // Setting batch so that load will be distributed evenly between workers, each
+    // worker would get only 1/n on each tick.
+    val queue_size = ib_queue.sync({ requests, _ -> requests.size })
+    val batch_size = max(floor(queue_size.toFloat() / IbConfig.workers_count.toFloat()).toInt(), 1)
+
     // Getting new requests
     val new_requests = mutable_list_of<ActiveRequest<Any, Any>>()
-    // Setting batch so that load will be distributed evenly between workers
-    val batch_size = ceil(
-      ib_queue.sync({ requests, _ -> requests.size }).toFloat() / IbConfig.workers_count.toFloat()
-    ).toInt()
     var i = 0
     while (
       (i < batch_size) &&
