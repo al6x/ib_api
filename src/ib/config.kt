@@ -21,11 +21,11 @@ object IbConfig {
 
   // 50 msg/sec, no more than 60 historic requests per 10 minutes
   // Lowering it a little to be safe.
-  val requests_per_second_limit: Int = Env["requests_per_second_limit", "40"].toInt()
+  val requests_per_second_limit: Int = Env["requests_per_second_limit", "50"].toInt()
 
   // http://interactivebrokers.github.io/tws-api/top_data.html
   // It's 100, but keeping it a little less
-  val parallel_requests_limit_per_worker: Int = Env["parallel_requests_limit_per_worker", "90"].toInt()
+  val parallel_requests_limit_per_worker: Int = Env["parallel_requests_limit_per_worker", "24"].toInt()
 
   val thread_sleep_ms: Int = Env["thread_sleep_ms", "100"].toInt()
 
@@ -38,4 +38,11 @@ object IbConfig {
 
   // Failed requests to TWS will be retried.
   val retry_count: Int = Env["retry_count", "2"].toInt()
+
+  init {
+    val total_limit = parallel_requests_limit_per_worker * workers_count
+    if (total_limit > 100) log_warn(
+      "parallel request limit for account is $total_limit, usually it should be no more than 100 per account"
+    )
+  }
 }

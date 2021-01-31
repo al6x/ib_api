@@ -42,6 +42,11 @@ fun log_info(message: String): Void {
   log_stdout("  " + format_component("") + " " + message)
 }
 
+fun log_warn(message: String): Void {
+  if (!LogConfig.is_enabled("", "warn")) return
+  log_stderr("W " + format_component("") + " " + message)
+}
+
 fun log_error(message: String, error: Throwable?): Void {
   if (!LogConfig.is_enabled("", "error")) return
   log_stderr("E " + format_component("") + " " + message)

@@ -294,7 +294,7 @@ proc get_stock_option_chain_prices*(
 
   # Getting contracts
   var contracts: seq[OptionContract] = @[]
-  let expiration_batches = chain.expirations_asc.batches(2)
+  let expiration_batches = chain.expirations_asc.batches(6)
   for i, batch in expiration_batches:
     log2
       .with((batch: i + 1, total: expiration_batches.len))
@@ -317,7 +317,7 @@ proc get_stock_option_chain_prices*(
 
   # Using batches to fail fast, if the success rate is low failing with the first batch
   # without trying the rest of the contracts
-  let batches = ids.batches(200)
+  let batches = ids.batches(400)
   var prices: seq[Fallible[SnapshotPrice]] = @[]
   for i, batch in batches:
     log2
