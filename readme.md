@@ -215,7 +215,7 @@ for each worker `Worker <-> EWrapperImpl` and `IbQueue` to communicate `Worker <
 *It is my personal opinion about "IBKR Client Portal Web API", as a professional software developer. 
 I may be wrong about it or miss some details*
 
-In short - both Java and REST API from Interactive Brokers are terrible and poorly written, both are garbage.
+In short - both Java and REST API from Interactive Brokers are terrible and poorly written.
 Ideally you would like to avoid to use any API from IB and use other provider. But if you are using IB, you 
 have to use its API. In that case IB Java API looks to me like lesser evil than "IBKR Client Portal Web API". 
 
