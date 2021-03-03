@@ -227,10 +227,11 @@ data I need.
 
 The Java API for Interactive Brokers is used by TWS itself. So I know that **it has everything, all the 
 data seen on the TWS screen**. And, as soon as it's used by lots of people, implicitly, the bugs are more 
-or less get fixed. So I haver reasonable ensurance that Java API at least somehow works.
+or less get fixed. So I have some ensurance that Java API at least somehow works.
 
 The way "IBKR Client Portal Web API" works doesn't make much sense, it looks like a poor attempt to offer
-old evented Java API wrapped as modern tech like REST API. Instead of offering proper REST API, as it should be,
+old evented Java API wrapped in a modern package like REST API. Without any understanging of what 
+REST API is and how it should be designed. Instead of offering proper REST API, as it should be,
 via HTTPS as REST services usually work. The IB does it in a strange way, it requires local Java API proxy 
 installation. With that comes the need to install that local Java proxy, **and babysit it with manual 
 auth every day** also, as far as I know **you won't be able to use TWS simultaneously**.
