@@ -25,7 +25,7 @@ object IbConfig {
 
   // http://interactivebrokers.github.io/tws-api/top_data.html
   // It's 100, but keeping it a little less
-  val parallel_requests_limit_per_worker: Int = Env["parallel_requests_limit_per_worker", "24"].toInt()
+  val parallel_requests_limit_per_worker: Int = Env["parallel_requests_limit_per_worker", "22"].toInt()
 
   val thread_sleep_ms: Int = Env["thread_sleep_ms", "100"].toInt()
 

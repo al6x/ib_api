@@ -210,6 +210,40 @@ for each worker `Worker <-> EWrapperImpl` and `IbQueue` to communicate `Worker <
 
 `Config` - configuration options, some could be set from the shell.
 
+# Why it's needed if IB already provides REST API? 
+
+*It is my personal opinion about "IBKR Client Portal Web API", as a professional software developer. 
+I may be wrong about it or miss some details*
+
+In short - both Java and REST API from Interactive Brokers are terrible and poorly written, both are garbage.
+Ideally you would like to avoid to use any API from IB and use other provider. But if you are using IB, you 
+have to use its API. In that case IB Java API looks to me like lesser evil than "IBKR Client Portal Web API". 
+
+Below are some reasons why I don't want to use "IBKR Client Portal Web API" and instead wrote my own REST 
+wrapper around "Java API".
+
+I have doubts about "IBKR Client Portal Web API" 1) it works well 2) is simple and 3) provides all the 
+data I need.
+
+The Java API for Interactive Brokers is used by TWS itself. So I know that **it has everything, all the 
+data seen on the TWS screen**. And, as soon as it's used by lots of people, implicitly, the bugs are more 
+or less get fixed. So I haver reasonable ensurance that Java API at least somehow works.
+
+The way "IBKR Client Portal Web API" works doesn't make much sense, it looks like a poor attempt to offer
+old evented Java API wrapped as modern tech like REST API. Instead of offering proper REST API, as it should be,
+via HTTPS as REST services usually work. The IB does it in a strange way, it requires local Java API proxy 
+installation. With that comes the need to install that local Java proxy, **and babysit it with manual 
+auth every day** also, as far as I know **you won't be able to use TWS simultaneously**.
+
+Using "IBKR Client Portal Web API" introduces new questions - 1) what are its limits and if they are 
+different from TWS? 2) if two simultaneous connections TWS and Web Gateway API will be allowed? 3) If changes 
+made by Web Gateway API will be reflected in TWS 4) How to properly configure it so all the market data 
+subscription specified for TWS will be there too 5) do I need to create a separate user or not? And so on. 
+I don't want to spent my time looking for answers to those questions.
+
+The "IBKR Client Portal Web API" still has the same terrible overcomplicated API as Java API. So it's same hard 
+to use as Java API and I see no advantage to use it.
+
 # Notes
 
 - I use unusual code conventions for Kotlin, just for fun, wanted to try it and see if it works or not.

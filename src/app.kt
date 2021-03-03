@@ -6,7 +6,7 @@ import ib.lib.IBImpl
 fun main() {
   Env.set(
 //    "workers_count"      to 1,
-//    "retry_count"        to 1,
+    "retry_count"        to 1,
 //    "disable_logs"       to "wrapper,worker.info,worker.debug"
     "disable_logs"       to "wrapper"
   )

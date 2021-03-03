@@ -438,7 +438,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       ): SnapshotPrice? = when (state) {
         "make_requests" -> {
           client().reqMarketDataType(data_type.code)
-          sleep(100)
+          sleep(50)
           client().reqMktData(request_id, task, "", false, false, null)
           state = "wait_for_prices"
           null

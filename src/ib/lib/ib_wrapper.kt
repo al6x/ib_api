@@ -326,7 +326,7 @@ class IBWrapper(
   }
 
   override fun commissionReport(commissionReport: CommissionReport?) {
-    unexpected_emit("commissionReport")
+    // Ignored
   }
 
   override fun position(account: String?, contract: Contract?, pos: Double, avgCost: Double) {
