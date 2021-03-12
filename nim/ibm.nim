@@ -312,8 +312,8 @@ proc get_stock_option_chain_prices*(
   if ids.is_empty: throw("thre's no contracts")
 
   func success_rate(prices: seq[Fallible[SnapshotPrice]]): float =
-    if prices.is_empty: return 0.0
-    else: (prices.count((price) => not price.is_error) / prices.len).round(2)
+    if prices.is_empty: 0.0
+    else:               prices.count((price) => not price.is_error) / prices.len
 
   # Using batches to fail fast, if the success rate is low failing with the first batch
   # without trying the rest of the contracts
@@ -325,7 +325,7 @@ proc get_stock_option_chain_prices*(
       .info(log_message & " {batch} batch of {total}")
     let bprices = ib.get_stock_options_prices_by_ids(batch)
     let sr = success_rate(bprices)
-    if sr < min_success_rate: throw(fmt"success rate is too low {sr}")
+    if sr < min_success_rate: throw(fmt"success rate is too low {sr.format(2)}")
     prices.add bprices
 
   # Preparing result
