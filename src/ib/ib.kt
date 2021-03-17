@@ -26,11 +26,11 @@ abstract class IB {
       )
     }
 
-  class StockInspection(
+  data class StockInspection(
     val stocks: Map<Int, GroupedStocks> // id -> GroupedStocks
   )
 
-  class GroupedStocks(
+  data class GroupedStocks(
     val currency:                     String,
     val names:                        List<String>,
     val primary_exchange:             String,
@@ -42,7 +42,7 @@ abstract class IB {
     val option_chain_prices:          Dict<String, StockOptionPricesInfo>
   )
 
-  class StockOptionPricesInfo(
+  data class StockOptionPricesInfo(
     val total_count:   Int,
     val success_count: Int,
     val errors_count:  Dict<String, Int>,
@@ -58,28 +58,28 @@ abstract class IB {
       this.get_portfolio()
     }
 
-  class Portfolio(
+  data class Portfolio(
     val account_id:    String,
     val stocks:        List<PortfolioPosition<PortfolioStockContract>>,
     val stock_options: List<PortfolioPosition<PortfolioOptionContract>>,
     val cash_in_usd:   Double
   )
 
-  class PortfolioPosition<Contract> (
+  data class PortfolioPosition<Contract> (
     val position:     Int,
     val average_cost: Double,  // IB somehow approximately calculates it, could be
                                // quite different from the actual average cost.
     val contract:     Contract
   )
 
-  class PortfolioStockContract (
+  data class PortfolioStockContract (
     val symbol:   String,
     val exchange: String?, // IB dosn't always provide it
     val currency: String,
     val id:       Int      // IB id for contract
   )
 
-  class PortfolioOptionContract(
+  data class PortfolioOptionContract(
     val symbol:     String,
     val right:      String,  // "put" or "call"'
     val expiration: String,  // 2020-08-21
@@ -107,7 +107,7 @@ abstract class IB {
       )
     }
 
-  class StockContract(
+  data class StockContract(
     val symbol:           String,
     val name:             String,
     val exchange:         String,
@@ -151,7 +151,7 @@ abstract class IB {
       )
     }
 
-  class SnapshotPrice(
+  data class SnapshotPrice(
     val last_price:        Double?,      // Some prices could be unavailable
     val close_price:       Double?,
     val ask_price:         Double?,
@@ -208,7 +208,7 @@ abstract class IB {
       )
     }
 
-  class OptionChains(
+  data class OptionChains(
     val largest_desc: List<OptionChain>, // Some exchanges contain multiple option chains, in such case for
                                          // every exchange the largest chain is selected.
                                          // Largest by size of expirations and strikes.
@@ -216,7 +216,7 @@ abstract class IB {
     val all:          List<OptionChain>  // Full list of chains.
   )
 
-  class OptionChain(
+  data class OptionChain(
     val option_exchange: String,       // Could be different from stock exchange
     val expirations_asc: List<String>, // Sorted
     val strikes_asc:     List<Double>, // Sorted
@@ -240,12 +240,12 @@ abstract class IB {
       )
     }
 
-  class OptionContracts(
+  data class OptionContracts(
     val multiplier: Int,                                                // Usually 100
     val contracts_asc_by_right_expiration_strike:  List<OptionContract>
   )
 
-  class OptionContract(
+  data class OptionContract(
     val id:         Int,
     val expiration: String, // 2020-08-21
     val strike:     Double, // 120
