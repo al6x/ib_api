@@ -71,8 +71,8 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       val stocks  = mutable_list_of<PortfolioPosition<PortfolioStockContract>>()
       val options = mutable_list_of<PortfolioPosition<PortfolioOptionContract>>()
 
-      // Just in case makeing sure there's no duplicates, as IB in some cases respond with same
-      // position and different events and it's easy to make mistake and return multiple same positions.
+      // Ensuring there's no duplicates, as IB in some cases respond with same position
+      // and different event names and it's easy to make mistake and return multiple same positions.
       assert(stocks.distinct().size  == stocks.size)
       assert(options.distinct().size == options.size)
 
