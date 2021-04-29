@@ -5,7 +5,6 @@
 #
 #   nim c -r ibm.nim
 
-import system except find
 import basem, timem, httpm, jsonm, mathm, logm
 
 
@@ -288,7 +287,7 @@ proc get_stock_option_chain_prices*(
   let chains = ib.get_stock_option_chains(
     symbol = symbol, exchange = exchange, currency = currency
   )
-  let ochain = chains.largest_desc.find((chain) => chain.option_exchange == option_exchange)
+  let ochain = chains.largest_desc.fget((chain) => chain.option_exchange == option_exchange)
   if not ochain.is_some: throw(fmt"chain for exhange {option_exchange} not found")
   let chain = ochain.get
 
