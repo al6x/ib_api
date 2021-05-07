@@ -5,7 +5,7 @@
 #
 #   nim c -r ibm.nim
 
-import basem, timem, httpm, jsonm, mathm, logm
+import basem, timem, http_clientm, jsonm, mathm, logm
 
 
 # IB and Config ------------------------------------------------------------------------------------
@@ -72,7 +72,7 @@ proc get_stock_contract*(
       "/api/v1/stock_contract",
       (exchange: exchange, symbol: symbol, currency: currency),
     )
-    http_get[StockContract](url, ib.timeout_sec)
+    get_data[StockContract](url, ib.timeout_sec)
 
 
 # get_stock_contracts ------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ proc get_stock_contracts*(
     "get_stock_contracts {symbol}"
   ) do -> auto:
     let url = ib.build_url("/api/v1/stock_contracts", (symbol: symbol, ))
-    http_get[seq[StockContract]](url, ib.timeout_sec)
+    get_data[seq[StockContract]](url, ib.timeout_sec)
 
 
 # get_stock_price ----------------------------------------------------------------------------------
@@ -113,7 +113,7 @@ proc get_stock_price*(
       "/api/v1/stock_price",
       (symbol: symbol, exchange: exchange, currency: currency, data_type: data_type)
     )
-    http_get[SnapshotPrice](url, ib.timeout_sec)
+    get_data[SnapshotPrice](url, ib.timeout_sec)
 
 
 # get_stock_option_chains --------------------------------------------------------------------------
@@ -141,7 +141,7 @@ proc get_stock_option_chains*(
       "/api/v1/stock_option_chains",
       (symbol: symbol, exchange: exchange, currency: currency)
     )
-    http_get[OptionChains](url, ib.timeout_sec)
+    get_data[OptionChains](url, ib.timeout_sec)
 
 
 # get_stock_option_chain_contracts -----------------------------------------------------------------
@@ -169,7 +169,7 @@ proc get_stock_option_chain_contracts*(
       "/api/v1/stock_option_chain_contracts",
       (symbol: symbol, option_exchange: option_exchange, currency: currency),
     )
-    http_get[OptionContracts](url, ib.timeout_sec)
+    get_data[OptionContracts](url, ib.timeout_sec)
 
 
 # get_stock_option_chain_contracts_by_expiration ---------------------------------------------------
@@ -188,7 +188,7 @@ proc get_stock_option_chain_contracts_by_expirations*(
       "/api/v1/stock_option_chain_contracts_by_expiration",
       (symbol: symbol, option_exchange: option_exchange, currency: currency, expiration: expiration),
     ])
-    http_post_batch[JsonNode, seq[OptionContract]](
+    post_batch[JsonNode, seq[OptionContract]](
       ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
       .map((e) => e.get)
@@ -228,7 +228,7 @@ proc get_stock_options_prices*(
         option_exchange: c.option_exchange, currency: c.currency, data_type: c.data_type
       )
     ])
-    http_post_batch[JsonNode, SnapshotPrice](
+    post_batch[JsonNode, SnapshotPrice](
       ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
 
@@ -252,7 +252,7 @@ proc get_stock_options_prices_by_ids*(
       "/api/v1/stock_option_price_by_id",
       (id: c.id, option_exchange: c.option_exchange, currency: c.currency, data_type: c.data_type)
     ])
-    http_post_batch[JsonNode, SnapshotPrice](
+    post_batch[JsonNode, SnapshotPrice](
       ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
 
@@ -377,7 +377,7 @@ proc get_portfolio*(ib: IB): seq[Portfolio] =
     "get_portfolio"
   ) do -> auto:
     let url = ib.build_url("/api/v1/portfolio")
-    http_get[seq[Portfolio]](url, ib.timeout_sec)
+    get_data[seq[Portfolio]](url, ib.timeout_sec)
 
 
 if is_main_module:
