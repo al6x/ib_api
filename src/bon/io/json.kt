@@ -67,5 +67,7 @@ object Json {
     fun get_array(name: String): List<UntypedJson> = get(name).asJsonArray.map(Json::UntypedJson)
 
     fun get_array(): List<UntypedJson> = json.asJsonArray.map(Json::UntypedJson)
+
+    fun get_object(name: String): UntypedJson = UntypedJson(get(name))
   }
 }

@@ -5,7 +5,8 @@
 #
 #   nim c -r ibm.nim
 
-import basem, timem, http_clientm, jsonm, mathm, logm
+import base/[basem, timem, jsonm, mathm, logm]
+import http/http_clientm
 
 
 # IB and Config ------------------------------------------------------------------------------------
@@ -173,6 +174,9 @@ proc get_stock_option_chain_contracts*(
 
 
 # get_stock_option_chain_contracts_by_expiration ---------------------------------------------------
+type ContractsByExpirationBody = tuple[
+  symbol: string, option_exchange: string, currency: string, expiration: string]
+
 proc get_stock_option_chain_contracts_by_expirations*(
   ib:              IB,
   symbol:          string,      # MSFT
@@ -184,11 +188,11 @@ proc get_stock_option_chain_contracts_by_expirations*(
     (symbol: symbol, option_exchange: option_exchange, currency: currency),
     "get_stock_option_chain_contracts_by_expirations '{symbol} {option_exchange} {currency}'"
   ) do -> auto:
-    let requests = expirations.map((expiration) => %* [
-      "/api/v1/stock_option_chain_contracts_by_expiration",
-      (symbol: symbol, option_exchange: option_exchange, currency: currency, expiration: expiration),
-    ])
-    post_batch[JsonNode, seq[OptionContract]](
+    let requests = expirations.map((expiration) => (
+      path: "/api/v1/stock_option_chain_contracts_by_expiration",
+      body: (symbol: symbol, option_exchange: option_exchange, currency: currency, expiration: expiration)
+    ))
+    post_batch[ContractsByExpirationBody, seq[OptionContract]](
       ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
       .map((e) => e.get)
@@ -213,6 +217,11 @@ type StockOptionParams* = tuple
   currency:        string  # USD
   data_type:       string  # Market data type
 
+type StockOptionRequestBody = tuple[
+  symbol: string, right: string, expiration: string, strike: float,
+  option_exchange: string, currency: string, data_type: string
+]
+
 proc get_stock_options_prices*(
   ib:         IB,
   contracts:  seq[StockOptionParams],
@@ -221,14 +230,14 @@ proc get_stock_options_prices*(
     (count: contracts.len, ),
     "get_stock_options_prices for {count} contracts"
   ) do -> auto:
-    let requests = contracts.map((c) => %* [
-      "/api/v1/stock_option_price",
-      (
+    let requests = contracts.map((c) => (
+      path: "/api/v1/stock_option_price",
+      body: (
         symbol: c.symbol, right: c.right, expiration: c.expiration, strike: c.strike,
         option_exchange: c.option_exchange, currency: c.currency, data_type: c.data_type
       )
-    ])
-    post_batch[JsonNode, SnapshotPrice](
+    ))
+    post_batch[StockOptionRequestBody, SnapshotPrice](
       ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
 
@@ -240,6 +249,8 @@ type IdAndExchange* = tuple
   currency:        string # USD
   data_type:       string # Market data type
 
+type OptionPriceByIdRequestBody = tuple[id: int, option_exchange: string, currency: string, data_type: string]
+
 proc get_stock_options_prices_by_ids*(
   ib:         IB,
   contracts:  seq[IdAndExchange]
@@ -248,11 +259,11 @@ proc get_stock_options_prices_by_ids*(
     (count: contracts.len, ),
     "get_stock_options_prices_by_ids for {count} ids"
   ) do -> auto:
-    let requests = contracts.map((c) => %* [
-      "/api/v1/stock_option_price_by_id",
-      (id: c.id, option_exchange: c.option_exchange, currency: c.currency, data_type: c.data_type)
-    ])
-    post_batch[JsonNode, SnapshotPrice](
+    let requests = contracts.map((c) => (
+      path: "/api/v1/stock_option_price_by_id",
+      body: (id: c.id, option_exchange: c.option_exchange, currency: c.currency, data_type: c.data_type)
+    ))
+    post_batch[OptionPriceByIdRequestBody, SnapshotPrice](
       ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
 
@@ -288,7 +299,7 @@ proc get_stock_option_chain_prices*(
     symbol = symbol, exchange = exchange, currency = currency
   )
   let ochain = chains.largest_desc.fget((chain) => chain.option_exchange == option_exchange)
-  if not ochain.is_some: throw(fmt"chain for exhange {option_exchange} not found")
+  if not ochain.is_some: throw fmt"chain for exhange {option_exchange} not found"
   let chain = ochain.get
 
   # Getting contracts
@@ -308,7 +319,7 @@ proc get_stock_option_chain_prices*(
   let ids = contracts.map((c) =>
     (id: c.id, option_exchange: option_exchange, currency: currency, data_type: data_type)
   )
-  if ids.is_empty: throw("thre's no contracts")
+  if ids.is_empty: throw("there's no contracts")
 
   func success_rate(prices: seq[Fallible[SnapshotPrice]]): float =
     if prices.is_empty: 0.0
@@ -329,7 +340,7 @@ proc get_stock_option_chain_prices*(
 
   # Preparing result
   result.success_rate = success_rate(prices)
-  if result.success_rate < min_success_rate: throw(fmt"success rate is too low {result.success_rate}")
+  if result.success_rate < min_success_rate: throw fmt"success rate is too low {result.success_rate}"
   result.chain = chain
   result.contracts_asc_by_right_expiration_strike = contracts
     .zip(prices)

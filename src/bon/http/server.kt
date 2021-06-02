@@ -109,13 +109,14 @@ open class Server (
     return { call_request ->
       // Creating requests
       val requests = call_request.body.get_array().map { command ->
-        val route = command.get_array()[0].get_string()
-        val body  = command.get_array()[1]
+        val path = command.get_string("path")
+        val body = command.get_object("body")
+
         Request(
           id              = request_id_counter.getAndIncrement(),
           method          = call_request.method,
           format          = call_request.format,
-          path            = route,
+          path            = path,
           query_as_string = "",
           query           = dict_of(),
           route_params    = dict_of(),
