@@ -126,6 +126,8 @@ type OptionChain* = object
 
 type OptionChains* = object
   largest_desc*: seq[OptionChain]
+  # Different exchanges could have different stock option chains, with different amount of contracts,
+  # sorting desc by contract amount.
   all*:          seq[OptionChain]
 
 proc get_stock_option_chains*(
@@ -144,17 +146,34 @@ proc get_stock_option_chains*(
     )
     get_data[OptionChains](url, ib.timeout_sec)
 
+proc get_stock_option_chain*(
+  ib:              IB,
+  symbol:          string,   # MSFT
+  exchange:        string,   # SMART
+  option_exchange: string,   # AMEX, differnt from the stock exchange
+  currency:        string,   # USD
+): OptionChain =
+  let chains = ib.get_stock_option_chains(symbol, exchange, currency)
+  let ochain = chains.largest_desc.fget((chain) => chain.option_exchange == option_exchange)
+  if not ochain.is_some: throw fmt"chain for exhange {option_exchange} not found"
+  ochain.get
+
 
 # get_stock_option_chain_contracts -----------------------------------------------------------------
 type OptionContract* = object
+  expiration*: TimeD  # 2020-08-21
+  strike*:     float  # 120
+  right*:      string # "put" or "call"
+
+type OptionContractWithId* = object
   id*:         int
   expiration*: TimeD  # 2020-08-21
   strike*:     float  # 120
   right*:      string # "put" or "call"
 
 type OptionContracts* = object
-  multiplier*:                               int                 # 100 or 1000
-  contracts_asc_by_right_expiration_strike*: seq[OptionContract] # Sorted
+  multiplier*:                               int                       # 100 or 1000
+  contracts_asc_by_right_expiration_strike*: seq[OptionContractWithId] # Sorted
 
 proc get_stock_option_chain_contracts*(
   ib:              IB,
@@ -183,7 +202,7 @@ proc get_stock_option_chain_contracts_by_expirations*(
   expirations:     seq[string], # 2020-01-01
   option_exchange: string,      # AMEX, differnt from the stock exchange
   currency:        string,      # USD
-): seq[OptionContract] =
+): seq[OptionContractWithId] =
   with_log(
     (symbol: symbol, option_exchange: option_exchange, currency: currency),
     "get_stock_option_chain_contracts_by_expirations '{symbol} {option_exchange} {currency}'"
@@ -192,7 +211,7 @@ proc get_stock_option_chain_contracts_by_expirations*(
       path: "/api/v1/stock_option_chain_contracts_by_expiration",
       body: (symbol: symbol, option_exchange: option_exchange, currency: currency, expiration: expiration)
     ))
-    post_batch[ContractsByExpirationBody, seq[OptionContract]](
+    post_batch[ContractsByExpirationBody, seq[OptionContractWithId]](
       ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
       .map((e) => e.get)
@@ -295,15 +314,11 @@ proc get_stock_option_chain_prices*(
   let tic = timer_sec()
 
   # Getting chain
-  let chains = ib.get_stock_option_chains(
-    symbol = symbol, exchange = exchange, currency = currency
-  )
-  let ochain = chains.largest_desc.fget((chain) => chain.option_exchange == option_exchange)
-  if not ochain.is_some: throw fmt"chain for exhange {option_exchange} not found"
-  let chain = ochain.get
+  let chain = ib.get_stock_option_chain(
+    symbol = symbol, exchange = exchange, option_exchange = option_exchange, currency = currency)
 
   # Getting contracts
-  var contracts: seq[OptionContract] = @[]
+  var contracts: seq[OptionContractWithId] = @[]
   let expiration_batches = chain.expirations_asc.batches(6)
   for i, batch in expiration_batches:
     log2
@@ -343,11 +358,9 @@ proc get_stock_option_chain_prices*(
   if result.success_rate < min_success_rate: throw fmt"success rate is too low {result.success_rate}"
   result.chain = chain
   result.contracts_asc_by_right_expiration_strike = contracts
+    .map((c) => OptionContract(expiration: c.expiration, strike: c.strike, right: c.right))
     .zip(prices)
-    .map((pair) => StockOptionContractWithPrice(
-      contract: pair[0],
-      price:    pair[1]
-    ))
+    .map((pair) => StockOptionContractWithPrice(contract: pair[0], price: pair[1]))
     .sort_by((pair) => (pair.contract.right, pair.contract.expiration, pair.contract.strike))
 
   log2
@@ -423,6 +436,7 @@ if is_main_module:
   # p ib.get_stock_option_chain_prices(
   #   symbol = "MSFT", option_exchange = "AMEX", currency = "USD", data_type = "realtime"
   # ).to_json
+
 
   # European testint -------------------------------------------------------------------------------
 

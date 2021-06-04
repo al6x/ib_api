@@ -25,7 +25,7 @@ object IbConfig {
 
   // http://interactivebrokers.github.io/tws-api/top_data.html
   // It's 100, but keeping it a little less
-  val parallel_requests_limit_per_worker: Int = Env["parallel_requests_limit_per_worker", "22"].toInt()
+  val parallel_requests_limit_per_worker: Int = Env["parallel_requests_limit_per_worker", "30"].toInt()
 
   val thread_sleep_ms: Int = Env["thread_sleep_ms", "100"].toInt()
 
@@ -34,7 +34,7 @@ object IbConfig {
   // see https://interactivebrokers.github.io/tws-api/connection.html
   //
   // Seems like TWS doesn't accept more than 2 simultaneous connection reliably
-  val workers_count: Int = Env["workers_count", "4"].toInt()
+  val workers_count: Int = Env["workers_count", "2"].toInt()
 
   // Failed requests to TWS will be retried.
   val retry_count: Int = Env["retry_count", "2"].toInt()
