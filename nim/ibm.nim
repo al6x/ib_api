@@ -414,6 +414,8 @@ if is_main_module:
 
   # p ib.get_stock_price(symbol="MSFT", exchange="ISLAND", currency="USD").to_json
 
+  # p ib.get_stock_price(symbol="FNV", exchange="TSE", currency="CAD", data_type = "delayed_frozen").to_json
+
   # p ib.get_stock_option_chains(symbol = "MSFT", exchange = "ISLAND", currency = "USD").to_json
 
   # p ib.get_stock_options_prices(@[
