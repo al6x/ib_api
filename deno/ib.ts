@@ -1,4 +1,4 @@
-// How to run examples - uncomment code samples at the end of the page and run it.
+// Run examples
 //
 //   deno run --allow-net --unstable deno/ib.ts
 
@@ -146,6 +146,7 @@ export class IB {
     const result = this.get_data<StockContract[]>('/api/v1/stock_contracts', query)
     return this.with_log('get_stock_contracts {symbol}', query, result)
   }
+
 
   get_stock_price(
     symbol:    string,    // MSFT
@@ -302,81 +303,12 @@ if (import.meta.main) {
 
   p(await ib.get_stock_options_prices([
     {
-      symbol: 'MSFT', right: 'call', expiration: '2022-06-17', strike: 220, option_exchange: 'AMEX',
-      currency: 'USD', data_type: 'delayed_frozen'
+      symbol: 'MSFT', right: 'call', expiration: '2022-06-17', strike: 220,
+      option_exchange: 'CBOE', currency: 'USD', data_type: 'delayed_frozen'
     },
     {
-      symbol: 'MSFT', right: 'call', expiration: '2022-06-17', strike: 220, option_exchange: 'AMEX',
-      currency: 'USD', data_type: 'delayed_frozen'
+      symbol: 'MSFT', right: 'call', expiration: '2022-06-17', strike: 225,
+      option_exchange: 'CBOE', currency: 'USD', data_type: 'delayed_frozen'
     }
   ]))
 }
-
-
-//   // International stock test ---------------------------------------------------------------------------
-
-//   // p ib.get_stock_contract(symbol = 'VAR1', exchange = 'SMART', currency = 'EUR')
-
-//   p(await ib.get_stock_price('FNV', 'TSE', 'CAD', 'delayed_frozen'))
-
-//   // p ib.get_stock_contracts(symbol = 'VAR1').to_json
-
-//   // Using SMART instead of IBIS because there's no subscription
-//   // p ib.get_stock_price(symbol = 'VAR1', exchange = 'SMART', currency = 'EUR')
-
-//   // p ib.get_stock_option_chains(symbol = 'VAR1', exchange = 'IBIS', currency = 'EUR').to_json
-
-//   // p ib.get_stock_options_prices(@[
-//   //   ('VAR1', 'call', '2021-12-17', 130.0, 'DTB', 'EUR', 'delayed_frozen'),
-//   //   ('VAR1', 'call', '2021-12-17', 135.0, 'DTB', 'EUR', 'delayed_frozen')
-//   // ]).to_json
-
-//   // p ib.get_stock_option_chain_contracts(symbol = 'VAR1', option_exchange = 'DTB', currency = 'EUR')
-//   // p ib.get_stock_option_chain_contracts_by_expirations(
-//   //   symbol = 'VAR1', expirations = @['2022-12-16'], option_exchange = 'DTB', currency = 'EUR'
-//   // )
-
-//   // let chains = ib.get_stock_option_chains(symbol = 'VAR1', exchange = 'IBIS', currency = 'EUR')
-//   // let chain = chains.search((chain) => chain.option_exchange == 'DTB').get
-//   // p ib.get_stock_option_chain_prices(
-//   //   symbol = 'VAR1', currency = 'EUR', chain = chain, data_type = 'delayed_frozen'
-//   // ).to_json
-
-//   // p ib.get_stock_options_prices_by_ids(@[
-//   //   (446264064, 'DTB', 'EUR', 'realtime')
-//   // ])
-
-//   // p ib.get_stock_option_chain_prices(
-//   //   symbol = 'VAR1', option_exchange = 'DTB', currency = 'EUR', data_type = 'delayed_frozen'
-//   // ).to_json
-
-//   // p ib.get_stock_option_chain_prices(
-//   //   symbol = 'VAR1', exchange = 'IBIS', option_exchange = 'DTB', currency = 'EUR', data_type = 'delayed_frozen'
-//   // ).to_json
-
-//   // Japan stocks, Panasonic
-
-//   // p ib.get_stock_option_chain_contracts(symbol = '6752', option_exchange = 'OSE.JPN', currency = 'JPY')
-//   // p ib.get_stock_options_prices(@[
-//   //   ('6752', 'call', '2021-03-11', 1300.0, 'SMART', 'JPY', 'delayed_frozen'),
-//   //   // ('VAR1', 'call', '2021-12-17', 130.0, 'DTB', 'EUR'),
-//   //   // ('VAR1', 'call', '2021-12-17', 135.0, 'DTB', 'EUR')
-//   // ]).to_json
-//   // p ib.get_stock_options_prices_by_ids(@[
-//   //   (416784710, 'OSE.JPN', 'JPY', 'delayed_frozen')
-//   // ])
-//   // p ib.get_stock_options_prices_by_ids(@[
-//   //   (416784710, 'OSE.JPN', 'JPY', 'delayed_frozen')
-//   // ])
-
-//   // p ib.get_stock_option_chain_prices(
-//   //   symbol = 'CRM', exchange = 'NYSE', option_exchange = 'CBOE', currency = 'USD', data_type = 'delayed_frozen'
-//   // ).to_json
-
-//   // p ib.get_stock_options_prices_by_ids(@[
-//   //   (436952728, 'OSE.JPN', 'JPY', 'delayed_frozen')
-//   // ])
-
-
-
-
