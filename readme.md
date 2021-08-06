@@ -13,8 +13,9 @@ For API docs see [IB.kt](https://github.com/alexeypetrushin/ib_api/blob/master/s
 
 # Videos
 
-- Overview https://youtu.be/JVQNyyUPSnY
-- Using in Nim language https://youtu.be/wSFj3jZQ-oE
+- [Overview and the REST API](https://youtu.be/JVQNyyUPSnY)
+- [TypeScript API](https://www.youtube.com/watch?v=xqUjHXrT7eA)
+- [Nim API](https://youtu.be/wSFj3jZQ-oE)
 
 # Examples
 
