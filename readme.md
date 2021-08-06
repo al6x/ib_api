@@ -1,6 +1,6 @@
 Made by [al6x](http://al6x.com).
 
-I do **Statstics**, **Analytics**, **Visualization**, $110/hr.
+I do **Statstics**, **Analytics**, **[Visualization](http://pl0t.com)**, $110/hr.
 
 # What it is
 
