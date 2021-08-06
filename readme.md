@@ -182,7 +182,7 @@ on "IBIS" but its option traded on "DTB".
 
 # Client Libraries
 
-- TypeScript Deno [deno/ib.ts]
+- TypeScript Deno [deno/ib.ts](/deno/ib.ts)
 - Nim - [nim/ibm.nim](/nim/ibm.nim)
 - Other languages - look at code in [deno/ib.ts](/deno/ib.ts) and translate it
   to language you need, it's short and simple.
