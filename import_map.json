@@ -1,0 +1,5 @@
+{
+  "imports": {
+    "base/": "/alex/projects/deno/base/"
+  }
+}
