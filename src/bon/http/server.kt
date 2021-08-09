@@ -10,8 +10,9 @@ import java.util.concurrent.atomic.AtomicInteger
 typealias Handler = (Request) -> Any // Result could be any object or Response
 
 data class Response(
-  val body:   Any,
-  val status: Int = 200
+  val body:    Any,
+  val status:  Int = 200,
+  val headers: Dict<String, String> = dict_of()
 )
 
 enum class Format { html, json, yaml, text }
@@ -185,30 +186,37 @@ open class Server (
     }
   }
 
-  private fun format_error(format: Format, message: String?, sres: spark.Response): String =
-    format_response(format, Response(ErrorResponse(message ?: "Unknown error")), sres)
+  private fun format_error(format: Format, error: String?, sres: spark.Response): String {
+    val err = error ?: "Unknown error"
+    val response = Response(ErrorResponse(err), 500, dict_of("error" to err))
+    return format_response(format, response, sres)
+  }
 
   private fun format_response(format: Format, res: Response, sres: spark.Response): String = when (format) {
     Format.json -> {
       sres.status(res.status)
+      for ((k, v) in res.headers) sres.header(k, v)
       sres.type("application/json")
       if (res.body is String) res.body else res.body.to_json()
     }
 
     Format.yaml -> {
       sres.status(res.status)
+      for ((k, v) in res.headers) sres.header(k, v)
       sres.type("text/yaml")
       if (res.body is String) res.body else res.body.to_yaml()
     }
 
     Format.text -> {
       sres.status(res.status)
+      for ((k, v) in res.headers) sres.header(k, v)
       sres.type("text/plain")
       res.body.to_string()
     }
 
     Format.html -> {
       sres.status(res.status)
+      for ((k, v) in res.headers) sres.header(k, v)
       sres.type("text/html")
       res.body.to_string()
     }

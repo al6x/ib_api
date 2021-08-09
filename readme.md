@@ -4,7 +4,7 @@ I do **Statstics**, **Analytics**, **[Visualization](http://pl0t.com)**, $110/hr
 
 # What it is
 
-**Simple and clean REST/Java/Kotlin/Nim API** for Interactive Brokers, [demo](https://youtu.be/JVQNyyUPSnY).
+**Simple and clean REST/Crystal/Java/Kotlin/Nim API** for Interactive Brokers, [demo](https://youtu.be/JVQNyyUPSnY).
 
 It will automatically connect and disconnect to running TWS UI and exposes its complicated evented API
 as **simple HTTP API**.
@@ -183,8 +183,9 @@ on "IBIS" but its option traded on "DTB".
 
 # Client Libraries
 
-- TypeScript Deno [deno/ib.ts](/deno/ib.ts)
-- Nim - [nim/ibm.nim](/nim/ibm.nim)
+- TypeScript Deno [/api/deno/ib.ts](/api/deno/ib.ts)
+- Nim - [/api/nim/ibm.nim](/api/nim/ibm.nim)
+- Crystal (Ruby) [/api/crystal/ib.ts](/api/crystal/ib.cr)
 - Other languages - look at code in [deno/ib.ts](/deno/ib.ts) and translate it
   to language you need, it's short and simple.
 
