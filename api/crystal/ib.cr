@@ -252,7 +252,6 @@ class IB
           results << klass.from_json(part["value"].to_json)
         end
       else
-        puts part.to_json
         results << klass.from_json(part.to_json)
       end
     end
