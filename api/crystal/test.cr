@@ -15,12 +15,12 @@ pp ib.stock_option_chain_contracts_by_expirations "MSFT", "CBOE", "USD", ["2022-
 
 pp ib.stock_options_prices [
   IB::StockOptionParams.new(
-    symbol: "MSFT", right: IB::Right::Call, expiration: "2022-06-17", strike: 220.0,
-    option_exchange: "CBOE", currency: "USD", data_type: IB::MarketDataType::DelayedFrozen
+    symbol: "MSFT", right: :call, expiration: "2022-06-17", strike: 220.0,
+    option_exchange: "CBOE", currency: "USD", data_type: :delayed_frozen
   ),
   IB::StockOptionParams.new(
-    symbol: "MSFT", right: IB::Right::Call, expiration: "2022-06-17", strike: 225.0,
-    option_exchange: "CBOE", currency: "USD", data_type: IB::MarketDataType::DelayedFrozen
+    symbol: "MSFT", right: :call, expiration: "2022-06-17", strike: 225.0,
+    option_exchange: "CBOE", currency: "USD", data_type: :delayed_frozen
   )
 ]
 
