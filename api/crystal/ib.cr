@@ -17,14 +17,16 @@ class IB
 
 
   # stock_contract ---------------------------------------------------------------------------------
-  alias StockContract = NamedTuple(
-    symbol:           String,
-    name:             String,
-    exchange:         String,
-    primary_exchange: String,
-    currency:         String,
-    id:               Int
-  )
+  record StockContract,
+    symbol :           String,
+    name :             String,
+    exchange :         String,
+    primary_exchange : String,
+    currency :         String,
+    id :               Int,
+  do
+    include JSON::Serializable
+  end
 
   def stock_contract(
     symbol :   String, # MSFT
@@ -46,14 +48,16 @@ class IB
 
 
   # stock_price ------------------------------------------------------------------------------------
-  alias SnapshotPrice = NamedTuple(
-    last_price:        Float?,
-    close_price:       Float?,
-    ask_price:         Float?,
-    bid_price:         Float?,
-    approximate_price: Float,
-    data_type:         MarketDataType
-  )
+  record SnapshotPrice,
+    last_price :        Float?,
+    close_price :       Float?,
+    ask_price :         Float?,
+    bid_price :         Float?,
+    approximate_price : Float,
+    data_type :         MarketDataType,
+  do
+    include JSON::Serializable
+  end
 
   def stock_price(
     symbol :    String, # MSFT
@@ -67,19 +71,23 @@ class IB
 
 
   # stock_option_chains ----------------------------------------------------------------------------
-  alias OptionChain = NamedTuple(
-    option_exchange: String,
-    expirations_asc: Array(String), # Sorted
-    strikes_asc:     Array(Float),  # Sorted
-    multiplier:      Int            # Multiplier 100 or 1000
-  )
+  record OptionChain,
+    option_exchange : String,
+    expirations_asc : Array(String), # Sorted
+    strikes_asc :     Array(Float),  # Sorted
+    multiplier :      Int,           # Multiplier 100 or 1000
+  do
+    include JSON::Serializable
+  end
 
-  alias OptionChains = NamedTuple(
-    largest_desc: Array(OptionChain),
+  record OptionChains,
+    largest_desc : Array(OptionChain),
     # Different exchanges could have different stock option chains, with different amount of contracts,
     # sorting desc by contract amount.
-    all:          Array(OptionChain)
-  )
+    all :          Array(OptionChain),
+  do
+    include JSON::Serializable
+  end
 
   def stock_option_chains(
     symbol :   String, # MSFT
@@ -103,23 +111,29 @@ class IB
   end
 
   # stock_option_chain_contracts -------------------------------------------------------------------
-  alias OptionContract = NamedTuple(
-    right:      Right,
-    expiration: String, # 2020-08-21
-    strike:     Float   # 120
-  )
+  record OptionContract,
+    right :      Right,
+    expiration : String, # 2020-08-21
+    strike :     Float,  # 120
+  do
+    include JSON::Serializable
+  end
 
-  alias OptionContractWithId = NamedTuple(
-    id:         Int,
-    expiration: String, # 2020-08-21
-    strike:     Float,  # 120
-    right:      Right
-  )
+  record OptionContractWithId,
+    id :         Int,
+    expiration : String, # 2020-08-21
+    strike :     Float,  # 120
+    right :      Right,
+  do
+    include JSON::Serializable
+  end
 
-  alias OptionContracts = NamedTuple(
-    multiplier:                               Int,                        # 100 or 1000
-    contracts_asc_by_right_expiration_strike: Array(OptionContractWithId) # Sorted
-  )
+  record OptionContracts,
+    multiplier :                               Int,                         # 100 or 1000
+    contracts_asc_by_right_expiration_strike : Array(OptionContractWithId), # Sorted
+  do
+    include JSON::Serializable
+  end
 
   def stock_option_chain_contracts(
     symbol :          String, # MSFT
@@ -151,67 +165,73 @@ class IB
 
 
   # stock_options_prices ---------------------------------------------------------------------------
-  alias StockOptionParams = NamedTuple(
-    symbol:          String,  # MSFT
-    right:           Right,   # "put" or "call"'
-    expiration:      String,  # 2020-08-21
-    strike:          Float,   # 120
-    option_exchange: String,  # AMEX, option exchange, different from the stock exchange
-    currency:        String,  # USD
-    data_type:       MarketDataType
-  )
+  record StockOptionParams,
+    symbol :          String,  # MSFT
+    right :           Right,   # "put" or "call"'
+    expiration :      String,  # 2020-08-21
+    strike :          Float,   # 120
+    option_exchange : String,  # AMEX, option exchange, different from the stock exchange
+    currency :        String,  # USD
+    data_type :       MarketDataType,
+  do
+    include JSON::Serializable
+  end
 
   def stock_options_prices(
     contracts : Array(StockOptionParams),
   ): Array(Exception | SnapshotPrice)
-    requests = contracts.map { |conctract| { path: "/api/v1/stock_option_price", body: conctract } }
+    requests = contracts.map { |params| { path: "/api/v1/stock_option_price", body: params } }
     http_post_batch("/api/v1/call", requests, SnapshotPrice)
   end
 
 
   # portfolio --------------------------------------------------------------------------------------
-  alias PortfolioStockContract = NamedTuple(
-    symbol:   String,
-    exchange: String?, # IB dosn't always provide it
-    currency: String,
-    id:       Int      # IB id for contract
-  )
+  record PortfolioStockContract,
+    symbol :   String,
+    exchange : String?, # IB dosn't always provide it
+    currency : String,
+    id :       Int,     # IB id for contract
+  do
+    include JSON::Serializable
+  end
 
-  alias PortfolioOptionContract = NamedTuple(
-    symbol:     String,
-    right:      Right,   # "put" or "call"'
-    expiration: String,  # 2020-08-21
-    strike:     Float,   # 120
-    exchange:   String?, # IB dosn't always provide it
-    currency:   String,
-    id:         Int,     # IB id for contract
-    multiplier: Int      # Usually 100
-  )
+  record PortfolioOptionContract,
+    symbol :     String,
+    right :      Right,   # "put" or "call"'
+    expiration : String,  # 2020-08-21
+    strike :     Float,   # 120
+    exchange :   String?, # IB dosn't always provide it
+    currency :   String,
+    id :         Int,     # IB id for contract
+    multiplier : Int,     # Usually 100
+  do
+    include JSON::Serializable
+  end
 
-  # Crystal problem 1 generic alias doesn't work
-  # alias PortfolioPosition(Contract) = NamedTuple(
-  #   position:     Int,
-  #   average_cost: Float,
-  #   contract:     Contract
-  # )
+  record StockPortfolioPosition,
+    position :     Int,
+    average_cost : Float,
+    contract :     PortfolioStockContract,
+  do
+    include JSON::Serializable
+  end
 
-  alias StockPortfolioPosition = NamedTuple(
-    position:     Int,
-    average_cost: Float,
-    contract:     PortfolioStockContract
-  )
-  alias OptionPortfolioPosition = NamedTuple(
-    position:     Int,
-    average_cost: Float,
-    contract:     PortfolioOptionContract
-  )
+  record OptionPortfolioPosition,
+    position :     Int,
+    average_cost : Float,
+    contract :     PortfolioOptionContract,
+  do
+    include JSON::Serializable
+  end
 
-  alias Portfolio = NamedTuple(
-    account_id:    String,
-    stocks:        Array(StockPortfolioPosition),
-    stock_options: Array(OptionPortfolioPosition),
-    cash_in_usd:   Float
-  )
+  record Portfolio,
+    account_id :    String,
+    stocks :        Array(StockPortfolioPosition),
+    stock_options : Array(OptionPortfolioPosition),
+    cash_in_usd :   Float,
+  do
+    include JSON::Serializable
+  end
 
   def portfolio : Array(Portfolio)
     Array(Portfolio).from_json http_get "/api/v1/portfolio"
@@ -229,7 +249,7 @@ class IB
 
   protected def http_post_batch(
     path :     String,
-    requests : Array(NamedTuple(path: String, body: NamedTuple)),
+    requests : Array(NamedTuple(path: String, body: Object)),
     klass :    T.class
   ) : Array(T | Exception) forall T
     resp = HTTP::Client.post @base_url + path, body: requests.to_json
@@ -239,13 +259,13 @@ class IB
     parts = JSON.parse(resp.body); i = 0; results = [] of T | Exception;
     while i < parts.size
       part = parts[i]; i += 1
-      is_hash = begin
-        part["is_error"]? # it throws an error if it's not a hash
+      is_errorneous_wrapper = begin
+        part["is_error"] # it throws an error if it's not object or doesn't have `is_error`
         true
       rescue
         false
       end
-      if is_hash
+      if is_errorneous_wrapper
         if part["is_error"].as_bool
           results << Exception.new(part["error"].as_s)
         else
