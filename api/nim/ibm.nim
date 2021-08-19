@@ -10,19 +10,16 @@ import http/http_clientm
 
 
 # IB and Config ------------------------------------------------------------------------------------
+type IB* = object
+  base_url*:    string
+  timeout_sec*: int
 
-let default_ib_api_port* = 8001
-let default_timeout_sec* = 10 * 60
-
-type IB = object
-  base_url:    string
-  timeout_sec: int
-
-proc init_ib*(
+proc init*(
+  _:            type[IB],
   host        = "localhost",
-  port        = default_ib_api_port,
-  timeout_sec = default_timeout_sec
-): Ib =
+  port        = 8001,
+  timeout_sec = 10 * 60
+): IB =
   IB(base_url: fmt"http://{host}:{port}", timeout_sec: timeout_sec)
 
 
@@ -99,22 +96,39 @@ type SnapshotPrice* = object
   approximate_price*: float
   data_type*:         string # IB code for market data type, realtime, delayed etc.
 
-proc get_stock_price*(
+type StockParams* = tuple
+  symbol:   string    # MSFT
+  exchange: string    # SMART
+  currency: string    # USD
+
+type StockPriceBody = tuple
+  symbol:    string
+  exchange:  string
+  currency:  string
+  data_type: string
+
+proc get_stock_prices*(
   ib:         IB,
-  symbol:     string,    # MSFT
-  exchange:   string,    # SMART
-  currency:   string,    # USD
+  stocks:     seq[StockParams],
   data_type = "realtime" # optional, realtime by default
-): SnapshotPrice =
+): seq[Fallible[SnapshotPrice]] =
   with_log(
-    (symbol: symbol, exchange: exchange, currency: currency, data_type: data_type),
-    "get_stock_price '{symbol} {exchange} {currency}' {data_type}"
+    (count: stocks.len, data_type: data_type),
+    "get_stock_prices for {count} stocks, {data_type}"
   ) do -> auto:
-    let url = ib.build_url(
-      "/api/v1/stock_price",
-      (symbol: symbol, exchange: exchange, currency: currency, data_type: data_type)
+    let requests = stocks.map((stock) => (
+      path: "/api/v1/stock_price",
+      body: (symbol: stock.symbol, exchange: stock.exchange, currency: stock.currency, data_type: data_type)
+    ))
+    post_batch[StockPriceBody, SnapshotPrice](
+      ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
-    get_data[SnapshotPrice](url, ib.timeout_sec)
+
+    # let url = ib.build_url(
+    #   "/api/v1/stock_price",
+    #   (symbol: symbol, exchange: exchange, currency: currency, data_type: data_type)
+    # )
+    # get_data[SnapshotPrice](url, ib.timeout_sec)
 
 
 # get_stock_option_chains --------------------------------------------------------------------------
@@ -336,7 +350,7 @@ proc get_stock_option_chain_prices*(
   )
   if ids.is_empty: throw("there's no contracts")
 
-  func success_rate(prices: seq[Fallible[SnapshotPrice]]): float =
+  let success_rate = proc (prices: seq[Fallible[SnapshotPrice]]): float =
     if prices.is_empty: 0.0
     else:               prices.count((price) => not price.is_error) / prices.len
 
@@ -405,14 +419,16 @@ proc get_portfolio*(ib: IB): seq[Portfolio] =
 
 
 if is_main_module:
-  let ib = init_ib()
+  let ib = IB.init()
 
   # US Testing -------------------------------------------------------------------------------------
   # p ib.get_stock_contract(symbol="MSFT", exchange="ISLAND", currency="USD").to_json
 
   # p ib.get_stock_contracts(symbol = "MSFT").to_json
 
-  # p ib.get_stock_price(symbol="MSFT", exchange="ISLAND", currency="USD").to_json
+  # p ib.get_stock_prices(@[
+  #   (symbol: "MSFT", exchange: "ISLAND", currency: "USD")
+  # ]).to_json
 
   # p ib.get_stock_price(symbol="FNV", exchange="TSE", currency="CAD", data_type = "delayed_frozen").to_json
 

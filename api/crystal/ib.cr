@@ -4,19 +4,22 @@ require "http"
 class IB
   alias Float = Float64; alias Int = Int32
 
-  enum Right
-    Put; Call
+  enum Right; Put; Call end
+  enum MarketDataType; Realtime; Frozen; Delayed; DelayedFrozen end
+
+
+  def initialize(@base_url = "http://localhost:8001"); end
+
+
+  def stock_contract(
+    symbol :   String, # MSFT
+    exchange : String, # SMART
+    currency : String, # USD
+  ) : StockContract
+    StockContract.from_json http_get "/api/v1/stock_contract",
+      { symbol: symbol, exchange: exchange, currency: currency }
   end
-  enum MarketDataType
-    Realtime; Frozen; Delayed; DelayedFrozen
-  end
 
-
-  def initialize(@base_url = "http://localhost:8001")
-  end
-
-
-  # stock_contract ---------------------------------------------------------------------------------
   record StockContract,
     symbol :           String,
     name :             String,
@@ -28,17 +31,7 @@ class IB
     include JSON::Serializable
   end
 
-  def stock_contract(
-    symbol :   String, # MSFT
-    exchange : String, # SMART
-    currency : String, # USD
-  ) : StockContract
-    StockContract.from_json http_get "/api/v1/stock_contract",
-      { symbol: symbol, exchange: exchange, currency: currency }
-  end
 
-
-  # stock_contracts --------------------------------------------------------------------------------
   # Get all stock contracts on all exchanges
   def stock_contracts(
     symbol : String # MSFT
@@ -46,18 +39,6 @@ class IB
     Array(StockContract).from_json http_get "/api/v1/stock_contracts", { symbol: symbol }
   end
 
-
-  # stock_price ------------------------------------------------------------------------------------
-  record SnapshotPrice,
-    last_price :        Float?,
-    close_price :       Float?,
-    ask_price :         Float?,
-    bid_price :         Float?,
-    approximate_price : Float,
-    data_type :         MarketDataType,
-  do
-    include JSON::Serializable
-  end
 
   def stock_price(
     symbol :    String, # MSFT
@@ -69,8 +50,27 @@ class IB
       { symbol: symbol, exchange: exchange, currency: currency, data_type: data_type.to_s.underscore }
   end
 
+  record SnapshotPrice,
+    last_price :        Float?,
+    close_price :       Float?,
+    ask_price :         Float?,
+    bid_price :         Float?,
+    approximate_price : Float,
+    data_type :         MarketDataType,
+  do
+    include JSON::Serializable
+  end
 
-  # stock_option_chains ----------------------------------------------------------------------------
+
+  def stock_option_chains(
+    symbol :   String, # MSFT
+    exchange : String, # SMART
+    currency : String, # USD
+  ) : OptionChains
+    OptionChains.from_json http_get "/api/v1/stock_option_chains",
+      { symbol: symbol, exchange: exchange, currency: currency }
+  end
+
   record OptionChain,
     option_exchange : String,
     expirations_asc : Array(String), # Sorted
@@ -89,14 +89,6 @@ class IB
     include JSON::Serializable
   end
 
-  def stock_option_chains(
-    symbol :   String, # MSFT
-    exchange : String, # SMART
-    currency : String, # USD
-  ) : OptionChains
-    OptionChains.from_json http_get "/api/v1/stock_option_chains",
-      { symbol: symbol, exchange: exchange, currency: currency }
-  end
 
   def stock_option_chain(
     symbol :          String, # MSFT
@@ -110,7 +102,16 @@ class IB
     ochain
   end
 
-  # stock_option_chain_contracts -------------------------------------------------------------------
+
+  def stock_option_chain_contracts(
+    symbol :          String, # MSFT
+    option_exchange : String, # AMEX, differnt from the stock exchange
+    currency :        String, # USD
+  ): OptionContracts
+    OptionContracts.from_json http_get "/api/v1/stock_option_chain_contracts",
+      { symbol: symbol, option_exchange: option_exchange, currency: currency }
+  end
+
   record OptionContract,
     right :      Right,
     expiration : String, # 2020-08-21
@@ -135,17 +136,7 @@ class IB
     include JSON::Serializable
   end
 
-  def stock_option_chain_contracts(
-    symbol :          String, # MSFT
-    option_exchange : String, # AMEX, differnt from the stock exchange
-    currency :        String, # USD
-  ): OptionContracts
-    OptionContracts.from_json http_get "/api/v1/stock_option_chain_contracts",
-      { symbol: symbol, option_exchange: option_exchange, currency: currency }
-  end
 
-
-  # stock_option_chain_contracts_by_expiration -----------------------------------------------------
   def stock_option_chain_contracts_by_expirations(
     symbol :          String,        # MSFT
     option_exchange : String,        # AMEX, differnt from the stock exchange
@@ -164,7 +155,13 @@ class IB
   end
 
 
-  # stock_options_prices ---------------------------------------------------------------------------
+  def stock_options_prices(
+    contracts : Array(StockOptionParams),
+  ): Array(Exception | SnapshotPrice)
+    requests = contracts.map { |params| { path: "/api/v1/stock_option_price", body: params } }
+    http_post_batch("/api/v1/call", requests, SnapshotPrice)
+  end
+
   record StockOptionParams,
     symbol :          String,  # MSFT
     right :           Right,   # "put" or "call"'
@@ -177,15 +174,11 @@ class IB
     include JSON::Serializable
   end
 
-  def stock_options_prices(
-    contracts : Array(StockOptionParams),
-  ): Array(Exception | SnapshotPrice)
-    requests = contracts.map { |params| { path: "/api/v1/stock_option_price", body: params } }
-    http_post_batch("/api/v1/call", requests, SnapshotPrice)
+
+  def portfolio : Array(Portfolio)
+    Array(Portfolio).from_json http_get "/api/v1/portfolio"
   end
 
-
-  # portfolio --------------------------------------------------------------------------------------
   record PortfolioStockContract,
     symbol :   String,
     exchange : String?, # IB dosn't always provide it
@@ -233,12 +226,10 @@ class IB
     include JSON::Serializable
   end
 
-  def portfolio : Array(Portfolio)
-    Array(Portfolio).from_json http_get "/api/v1/portfolio"
-  end
-
 
   # Helpers ----------------------------------------------------------------------------------------
+
+
   protected def http_get(path : String, query = NamedTuple.new())
     resp = HTTP::Client.get @base_url + path + '?' + URI::Params.encode(query)
     unless resp.success?
