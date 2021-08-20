@@ -67,42 +67,43 @@ class Worker(
 
   private fun run() {
     try{
-      while (true) {
-        // Waiting untill there is something to process
-        if ((ib_queue.sync { requests, _ -> requests.size == 0 }) && (active_requests.size == 0)) {
-          sleep(IbConfig.delay_ms)
-          continue
-        }
-
-        // Reconnect every 10min, just to clear the state
-        val wrapper = get_wrapper_without_creating()
-        if (
-          (wrapper != null) &&
-          (active_requests.size == 0) && // There's no current tasks
-          // (finished_tasks.any { processed -> processed.result is Fail }) &&
-          ((System.currentTimeMillis() - wrapper.created_at_ms) > 10 * min_ms)
-        ) {
-          // destroy_wrapper("there were errors during task processing")
-          destroy_wrapper("planned reconnection")
-        }
-
-        add_new_requests()
-
-        step()
-
-        collect_and_process_events_from_wrapper()
-
-        val finished = cancel_processed_requests()
-
-        send_results_back(finished)
-
-        sleep(IbConfig.thread_sleep_ms)
-      }
+      while (true) run_step()
     } catch (e : Throwable) {
-      p("Fatal error")
-      p(e)
+      log.error("fatal error", e)
       System.exit(1)
     }
+  }
+
+  private fun run_step() {
+    // Waiting untill there is something to process
+    if ((ib_queue.sync { requests, _ -> requests.size == 0 }) && (active_requests.size == 0)) {
+      sleep(IbConfig.delay_ms)
+      return
+    }
+
+    // Reconnect every 10min, just to clear the state
+    val wrapper = get_wrapper_without_creating()
+    if (
+      (wrapper != null) &&
+      (active_requests.size == 0) && // There's no current tasks
+      // (finished_tasks.any { processed -> processed.result is Fail }) &&
+      ((System.currentTimeMillis() - wrapper.created_at_ms) > 10 * min_ms)
+    ) {
+      // destroy_wrapper("there were errors during task processing")
+      destroy_wrapper("planned reconnection")
+    }
+
+    add_new_requests()
+
+    step()
+
+    collect_and_process_events_from_wrapper()
+
+    val finished = cancel_processed_requests()
+
+    send_results_back(finished)
+
+    sleep(IbConfig.thread_sleep_ms)
   }
 
 
@@ -295,7 +296,7 @@ class Worker(
       requests.add_all(to_retry)
       for ((key, result) in to_results) {
         if (key in results) { // assert(key !in results)
-          throw(Exception("assertion failed, same key in results, could be caused by non-unique requests in batch"))
+          throw Exception("assertion failed, same key in results $key, could be caused by non-unique requests in batch")
         }
         results[key] = result
       }
