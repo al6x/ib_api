@@ -19,7 +19,9 @@ class WorkerQueue {
     _events.clear()
     return tmp
   }
-  fun add_sync(event: IbWrapperEvent): Void = synchronized(this) { _events.add(event) }
+  fun add_sync(event: IbWrapperEvent): Void = synchronized(this) {
+    _events.add(event)
+  }
 }
 
 class ActiveRequest<Task, Result>(
@@ -40,7 +42,7 @@ class ActiveRequest<Task, Result>(
 
 // Worker has a separate connection to TWS and executes tasks (requests).
 class Worker(
-  private val ib_queue:   IBQueue,
+  private val ib_queue: IBQueue,
   val port:       Int,
   val worker_id:  Int
 ) {
@@ -64,36 +66,42 @@ class Worker(
   }
 
   private fun run() {
-    while (true) {
-      // Waiting untill there is something to process
-      if ((ib_queue.sync { requests, _ -> requests.size == 0 }) && (active_requests.size == 0)) {
-        sleep(IbConfig.delay_ms)
-        continue
+    try{
+      while (true) {
+        // Waiting untill there is something to process
+        if ((ib_queue.sync { requests, _ -> requests.size == 0 }) && (active_requests.size == 0)) {
+          sleep(IbConfig.delay_ms)
+          continue
+        }
+
+        // Reconnect every 10min, just to clear the state
+        val wrapper = get_wrapper_without_creating()
+        if (
+          (wrapper != null) &&
+          (active_requests.size == 0) && // There's no current tasks
+          // (finished_tasks.any { processed -> processed.result is Fail }) &&
+          ((System.currentTimeMillis() - wrapper.created_at_ms) > 10 * min_ms)
+        ) {
+          // destroy_wrapper("there were errors during task processing")
+          destroy_wrapper("planned reconnection")
+        }
+
+        add_new_requests()
+
+        step()
+
+        collect_and_process_events_from_wrapper()
+
+        val finished = cancel_processed_requests()
+
+        send_results_back(finished)
+
+        sleep(IbConfig.thread_sleep_ms)
       }
-
-      // Reconnect every min, just to clear the state
-      val wrapper = get_wrapper_without_creating()
-      if (
-        (wrapper != null) &&
-        (active_requests.size == 0) && // There's no current tasks
-        // (finished_tasks.any { processed -> processed.result is Fail }) &&
-        ((System.currentTimeMillis() - wrapper.created_at_ms) > 10 * min_ms)
-      ) {
-        // destroy_wrapper("there were errors during task processing")
-        destroy_wrapper("planned reconnection")
-      }
-
-      add_new_requests()
-
-      step()
-
-      collect_and_process_events_from_wrapper()
-
-      val finished = cancel_processed_requests()
-
-      send_results_back(finished)
-
-      sleep(IbConfig.thread_sleep_ms)
+    } catch (e : Throwable) {
+      p("Fatal error")
+      p(e)
+      System.exit(1)
     }
   }
 
@@ -159,10 +167,11 @@ class Worker(
 
             // Checking timeout
             if (timed_out && active.result == null) active.fatal_errors.add(
-              Exception("Timeout error after waiting for ${active.timer() / 1000}sec")
+              Exception("Timeout error after waiting for ${active.timer() / 1000}sec :timeout")
             )
           } catch (e: Exception) {
-            log.error("$worker_id running $active on ${wrapper.result.id}", e)
+            val msg = "$worker_id running $active on ${wrapper.result.id}"
+            if (AsyncError.log_error(e) && error_type(e) != "timeout") log.warn(msg, e) else log.warn(msg)
             active.fatal_errors.add(e)
           }
         }
@@ -285,7 +294,9 @@ class Worker(
     ib_queue.sync { requests, results ->
       requests.add_all(to_retry)
       for ((key, result) in to_results) {
-        assert(key !in results)
+        if (key in results) { // assert(key !in results)
+          throw(Exception("assertion failed, same key in results, could be caused by non-unique requests in batch"))
+        }
         results[key] = result
       }
     }

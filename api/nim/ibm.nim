@@ -96,7 +96,7 @@ type SnapshotPrice* = object
   approximate_price*: float
   data_type*:         string # IB code for market data type, realtime, delayed etc.
 
-type StockParams* = tuple
+type SEC* = tuple
   symbol:   string    # MSFT
   exchange: string    # SMART
   currency: string    # USD
@@ -107,9 +107,9 @@ type StockPriceBody = tuple
   currency:  string
   data_type: string
 
-proc get_stock_prices*(
+proc batch_get_stock_price*(
   ib:         IB,
-  stocks:     seq[StockParams],
+  stocks:     seq[SEC],
   data_type = "realtime" # optional, realtime by default
 ): seq[Fallible[SnapshotPrice]] =
   with_log(
@@ -123,12 +123,6 @@ proc get_stock_prices*(
     post_batch[StockPriceBody, SnapshotPrice](
       ib.build_url("/api/v1/call"), requests, ib.timeout_sec
     )
-
-    # let url = ib.build_url(
-    #   "/api/v1/stock_price",
-    #   (symbol: symbol, exchange: exchange, currency: currency, data_type: data_type)
-    # )
-    # get_data[SnapshotPrice](url, ib.timeout_sec)
 
 
 # get_stock_option_chains --------------------------------------------------------------------------
@@ -144,21 +138,52 @@ type OptionChains* = object
   # sorting desc by contract amount.
   all*:          seq[OptionChain]
 
+type SECO* = tuple
+  symbol:          string # MSFT
+  exchange:        string # SMART
+  currency:        string # USD
+  option_exchange: string # CBOE
+
+proc batch_get_stock_options_chains*(
+  ib:         IB,
+  contracts:  seq[SEC]
+): seq[Fallible[OptionChains]] =
+  with_log(
+    (count: contracts.len, ),
+    "get_stock_option_chains for {count}"
+  ) do -> auto:
+    let requests = contracts.map((sec) => (
+      path: "/api/v1/stock_option_chains",
+      body: sec
+    ))
+    post_batch[SEC, OptionChains](
+      ib.build_url("/api/v1/call"), requests, ib.timeout_sec
+    )
+
+proc batch_get_stock_options_chain*(
+  ib:         IB,
+  contracts:  seq[SECO]
+): seq[Fallible[OptionChain]] =
+  let contracts_sec = contracts.map((c) => (symbol: c.symbol, exchange: c.exchange, currency: c.currency))
+  let batch = ib.batch_get_stock_options_chains(contracts_sec)
+  for (contract, chains) in contracts.zip(batch):
+    result.add:
+      if chains.is_some:
+        let c = contract
+        let ochain = chains.get.largest_desc.fget((chain) => chain.option_exchange == c.option_exchange)
+        if ochain.is_some: ochain.success
+        else:              OptionChain.error fmt"chain for exhange {contract.option_exchange} not found"
+      else:
+        OptionChain.error chains.message
+
 proc get_stock_option_chains*(
   ib:        IB,
   symbol:    string,   # MSFT
   exchange:  string,   # SMART
   currency:  string,   # USD
 ): OptionChains =
-  with_log(
-    (symbol: symbol, exchange: exchange, currency: currency),
-    "get_stock_option_chains '{symbol} {exchange} {currency}'"
-  ) do -> auto:
-    let url = ib.build_url(
-      "/api/v1/stock_option_chains",
-      (symbol: symbol, exchange: exchange, currency: currency)
-    )
-    get_data[OptionChains](url, ib.timeout_sec)
+  let contract = (symbol: symbol, exchange: exchange, currency: currency)
+  ib.batch_get_stock_options_chains(@[contract]).first.get
 
 proc get_stock_option_chain*(
   ib:              IB,
@@ -167,10 +192,8 @@ proc get_stock_option_chain*(
   option_exchange: string,   # AMEX, differnt from the stock exchange
   currency:        string,   # USD
 ): OptionChain =
-  let chains = ib.get_stock_option_chains(symbol, exchange, currency)
-  let ochain = chains.largest_desc.fget((chain) => chain.option_exchange == option_exchange)
-  if not ochain.is_some: throw fmt"chain for exhange {option_exchange} not found"
-  ochain.get
+  let contract = (symbol: symbol, exchange: exchange, currency: currency, option_exchange: option_exchange)
+  ib.batch_get_stock_options_chain(@[contract]).first.get
 
 
 # get_stock_option_chain_contracts -----------------------------------------------------------------
@@ -210,7 +233,7 @@ proc get_stock_option_chain_contracts*(
 type ContractsByExpirationBody = tuple[
   symbol: string, option_exchange: string, currency: string, expiration: string]
 
-proc get_stock_option_chain_contracts_by_expirations*(
+proc batch_get_stock_option_chain_contracts_by_expirations*(
   ib:              IB,
   symbol:          string,      # MSFT
   expirations:     seq[string], # 2020-01-01
@@ -255,7 +278,7 @@ type StockOptionRequestBody = tuple[
   option_exchange: string, currency: string, data_type: string
 ]
 
-proc get_stock_options_prices*(
+proc batch_get_stock_options_prices*(
   ib:         IB,
   contracts:  seq[StockOptionParams],
 ): seq[Fallible[SnapshotPrice]] =
@@ -284,7 +307,7 @@ type IdAndExchange* = tuple
 
 type OptionPriceByIdRequestBody = tuple[id: int, option_exchange: string, currency: string, data_type: string]
 
-proc get_stock_options_prices_by_ids*(
+proc batch_get_stock_options_prices_by_ids*(
   ib:         IB,
   contracts:  seq[IdAndExchange]
 ): seq[Fallible[SnapshotPrice]] =
@@ -338,7 +361,7 @@ proc get_stock_option_chain_prices*(
     log2
       .with((batch: i + 1, total: expiration_batches.len))
       .info(log_message & " getting contracts, batch {batch} of {total}")
-    contracts.add ib.get_stock_option_chain_contracts_by_expirations(
+    contracts.add ib.batch_get_stock_option_chain_contracts_by_expirations(
       symbol, batch, option_exchange, currency
     )
   # Shuffling to distribute option contracts uniformly
@@ -362,7 +385,7 @@ proc get_stock_option_chain_prices*(
     log2
       .with((batch: i + 1, total: batches.len))
       .info(log_message & " {batch} batch of {total}")
-    let bprices = ib.get_stock_options_prices_by_ids(batch)
+    let bprices = ib.batch_get_stock_options_prices_by_ids(batch)
     let sr = success_rate(bprices)
     if sr < min_success_rate: throw(fmt"success rate is too low {sr.format(2)}")
     prices.add bprices
@@ -434,10 +457,15 @@ if is_main_module:
 
   # p ib.get_stock_option_chains(symbol = "MSFT", exchange = "ISLAND", currency = "USD").to_json
 
-  # p ib.get_stock_options_prices(@[
+  # p ib.batch_get_stock_options_prices(@[
   #   ("MSFT", "call", "2022-06-17", 220.0, "AMEX", "USD", "delayed_frozen"),
   #   ("MSFT", "call", "2022-06-17", 220.0, "AMEX", "USD", "delayed_frozen")
   # ]).to_json
+
+  p ib.batch_get_stock_options_prices(@[
+    ("NXE", "call", "2021-11-19", 3.0, "CBOE", "USD", "delayed_frozen"),
+    # ("NXE", "call", "2021-11-19", 2.5, "CBOE", "USD", "delayed_frozen")
+  ])
 
   # let chains = ib.get_stock_option_chains(symbol = "SPY", exchange = "NYSE", currency = "USD")
   # let chain = chains.search((chain) => chain.option_exchange == "AMEX").get
