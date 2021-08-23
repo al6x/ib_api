@@ -392,7 +392,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     contract.exchange(option_exchange)
     contract.currency(currency)
 
-//    contract.tradingClass(symbol)
+    contract.tradingClass(symbol)
 //    contract.multiplier("100")
 
     return get_last_price("get_stock_option_price", contract, data_type ?: MarketDataType.realtime)
