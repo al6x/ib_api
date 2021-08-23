@@ -5,7 +5,7 @@
 #
 #   nim c -r ibm.nim
 
-import base/[basem, timem, jsonm, mathm, logm]
+import base/preludem
 import http/http_clientm
 
 
