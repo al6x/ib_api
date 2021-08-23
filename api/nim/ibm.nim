@@ -1,6 +1,6 @@
 # How to run examples - uncomment code samples at the end of the page and run it.
 #
-# It depends on the `bon` library https://github.com/al6x/bon_nim download it and add to the nim
+# It depends on the library https://github.com/al6x/nim download it and add to the nim
 # paths in the `nim.cfg`.
 #
 #   nim c -r ibm.nim
