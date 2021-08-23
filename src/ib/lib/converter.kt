@@ -71,6 +71,7 @@ object Converter {
 
       SecType.OPT -> {
 //        assert(multiplier == 100) { "wrong multiplier for option position $symbol $multiplier" }
+//        p(ibc.tradingClass())
         PortfolioOptionContract(
           symbol     = symbol,
           exchange   = exchange,

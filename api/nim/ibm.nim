@@ -462,11 +462,6 @@ if is_main_module:
   #   ("MSFT", "call", "2022-06-17", 220.0, "AMEX", "USD", "delayed_frozen")
   # ]).to_json
 
-  p ib.batch_get_stock_options_prices(@[
-    ("NXE", "call", "2021-11-19", 3.0, "CBOE", "USD", "delayed_frozen"),
-    # ("NXE", "call", "2021-11-19", 2.5, "CBOE", "USD", "delayed_frozen")
-  ])
-
   # let chains = ib.get_stock_option_chains(symbol = "SPY", exchange = "NYSE", currency = "USD")
   # let chain = chains.search((chain) => chain.option_exchange == "AMEX").get
   # p ib.get_stock_option_chain_prices(
@@ -485,6 +480,18 @@ if is_main_module:
 
 
   # European testint -------------------------------------------------------------------------------
+
+  # p ib.batch_get_stock_option_chain_contracts_by_expirations(
+  #   "DAI", @["2021-11-19"], "DTB", "EUR"
+  # ).to_json.to_s
+
+  # p ib.batch_get_stock_options_prices_by_ids(@[
+  #   (id: 510217398, option_exchange: "DTB", currency: "EUR", data_type: "delayed_frozen")
+  # ])
+
+  # p ib.batch_get_stock_options_prices(@[
+  #   ("DAI", "call", "2021-11-19", 70.0, "DTB", "EUR", "delayed_frozen"),
+  # ]).to_json
 
   # p ib.get_stock_contract(symbol = "VAR1", exchange = "SMART", currency = "EUR")
 
