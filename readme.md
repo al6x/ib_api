@@ -1,5 +1,3 @@
-# What it is
-
 **Simple and clean REST/Crystal/Java/Kotlin/Nim API** for Interactive Brokers, [demo](https://youtu.be/JVQNyyUPSnY).
 
 It will automatically connect and disconnect to running TWS UI and exposes its complicated evented API
