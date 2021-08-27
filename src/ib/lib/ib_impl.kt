@@ -436,7 +436,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
   private fun get_last_prices(
     name: String, contracts: List<Contract>, data_type: MarketDataType
   ): List<SnapshotPrice> {
-    class GetLastPriceExecutor(contract: Contract) : Executor<Contract, SnapshotPrice> (contract) {
+    class GetLastPriceExecutor(val contract: Contract) : Executor<Contract, SnapshotPrice> (contract) {
       var state = "make_requests"
 
       override fun step(
@@ -545,7 +545,8 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         fun get_price(events: List<IBWrapper.PriceEvent>): Double? {
           // Checking that price > 0, the Interactive Brokers may respond with `0` or `-1`
           // Try /api/v1/stock_price?symbol=6752&currency=JPY&data_type=delayed
-          return events.find { it.price > 0 } ?.price
+          val price = events.find { it.price > 0 } ?.price
+          return fix_gbp_price(contract.currency(), price)
         }
 
         // Parsing found prices
@@ -589,5 +590,18 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
       IbConfig.recommended_waiting_time,
       IbConfig.timeout_ms
     )
+  }
+
+  private fun fix_gbp_price(currency: String, price: Double?): Double? {
+    // TWS API can return price in wrong currency, you request GBP and it would return in GBX.
+    // One possible way to fix it is to use `ContractDetails.PriceMagnifier` field, for details see
+    // https://groups.io/g/twsapi/topic/currency_for_lse_stocks/80534704
+    //
+    // But it would require one extra call and slow down the things, usually it's only needed for LSE,
+    // so using simpler approach to fix it. LSE almost always returns prices as GBX, so just dividing it
+    // by 100
+    val ucurrency = currency.toUpperCase()
+    if (ucurrency == "GBX") throw Exception("GBX currency is not supported, use GBP")
+    return if (ucurrency == "GBP" && price != null) price / 100 else price
   }
 }
