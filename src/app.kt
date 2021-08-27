@@ -11,7 +11,7 @@ fun main() {
     "disable_logs"       to "wrapper"
   )
 
-  log_info("Made by http://al6x.com, I do Analytics, Data Mining, Visualisations, $110/hr")
+  log_info("Made by http://al6x.com, I do Analytics, Data Mining, Visualisations")
 
   val server = Server(
     port                   = IbConfig.http_port,

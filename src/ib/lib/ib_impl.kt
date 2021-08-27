@@ -160,6 +160,47 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
   }
 
 
+  override fun get_stock_option_contract(
+    symbol: String,
+    currency: String,
+    option_exchange: String,
+    right: String,
+    expiration: String,
+    strike: Double
+  ): OptionContract {
+    log.info("get_stock_option_contract $symbol $currency $option_exchange $expiration $strike")
+
+    val contract = Contract()
+    contract.symbol(symbol)
+    contract.currency(currency)
+    contract.exchange(option_exchange)
+    contract.right(Converter.right_to_ib_right(right))
+    contract.lastTradeDateOrContractMonth(Converter.yyyy_mm_dd_to_yyyymmdd(expiration))
+    contract.strike(strike)
+    contract.secType(Types.SecType.OPT)
+
+    val cd = queue.process(
+      "get_stock_option_contract",
+      contract,
+      { _, request_id, client ->
+        client.reqContractDetails(request_id, contract)
+      },
+      null,
+      { _, errors, events, final_event, _, _-> when {
+        !errors.is_empty() -> throw errors.first() // Throwing just the first error for simplicity
+        final_event        -> {
+          assert(events.size == 1) { "Wrong events size ${events.size}" }
+          events.first() as ContractDetails
+        }
+        else               -> null
+      }},
+      IbConfig.recommended_waiting_time,
+      IbConfig.timeout_ms
+    )
+    return Converter.parse_option_contract(symbol, option_exchange, currency, cd).first
+  }
+
+
   override fun get_stock_option_chain_contracts_by_expiration(
     symbol: String, expiration: String, option_exchange: String, currency: String
   ): List<OptionContract> {

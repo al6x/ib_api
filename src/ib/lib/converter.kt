@@ -71,7 +71,6 @@ object Converter {
 
       SecType.OPT -> {
 //        assert(multiplier == 100) { "wrong multiplier for option position $symbol $multiplier" }
-//        p(ibc.tradingClass())
         PortfolioOptionContract(
           symbol     = symbol,
           exchange   = exchange,
@@ -154,7 +153,7 @@ object Converter {
     else       -> throw Exception("unknown right $right for $error_info")
   }
 
-  fun right_to_ib_right(right: String): Right = when (right) {
+  fun right_to_ib_right(right: String): Right = when (right.toLowerCase()) {
     "call" -> Right.Call
     "put"  -> Right.Put
     else       -> throw Exception("unknown right $right")

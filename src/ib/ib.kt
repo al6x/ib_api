@@ -193,6 +193,28 @@ abstract class IB {
 
 
   // get_stock_option_chains -----------------------------------------------------------------------
+  abstract fun get_stock_option_contract(
+    symbol: String,          // MSFT
+    currency: String,        // USD
+    option_exchange: String, // SMART
+    right: String,           // call
+    expiration: String,      // 2020-01-01
+    strike: Double           // 300.0
+  ): OptionContract
+
+  private fun expose_get_stock_option_contract(server: Server) =
+    server.get("/api/v1/stock_option_contract") { request ->
+      this.get_stock_option_contract(
+        request.get_string("symbol"),
+        request.get_string("currency"),
+        request.get_string("option_exchange"),
+        request.get_string("right"),
+        request.get_string("expiration"),
+        request.get_double("strike")
+      )
+    }
+
+  // get_stock_option_chains -----------------------------------------------------------------------
   abstract fun get_stock_option_chains(
     symbol:   String, // IB contract id
     exchange: String, // SMART
@@ -346,6 +368,7 @@ abstract class IB {
     expose_get_stock_price(server)
     expose_get_stock_price_by_id(server)
 
+    expose_get_stock_option_contract(server)
     expose_get_stock_option_chains(server)
     expose_stock_option_chain_contracts(server)
     expose_get_stock_option_chain_contracts_by_expiration(server)
