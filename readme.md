@@ -1,7 +1,3 @@
-Made by [al6x](http://al6x.com).
-
-I do **Statstics**, **Analytics**, **[Visualization](http://pl0t.com)**, $110/hr.
-
 # What it is
 
 **Simple and clean REST/Crystal/Java/Kotlin/Nim API** for Interactive Brokers, [demo](https://youtu.be/JVQNyyUPSnY).
@@ -10,6 +6,8 @@ It will automatically connect and disconnect to running TWS UI and exposes its c
 as **simple HTTP API**.
 
 For API docs see [IB.kt](https://github.com/alexeypetrushin/ib_api/blob/master/src/ib/ib.kt)
+
+Made by [al6x](http://al6x.com), I do **Statstics**, **Analytics**, **[Visualizations](http://pl0t.com)**.
 
 # Videos
 
@@ -256,6 +254,7 @@ to use as Java API and I see no advantage to use it.
 - IB contracts
   https://interactivebrokers.github.io/tws-api/classIBApi_1_1Contract.html
 - Some docs https://dimon.ca/dmitrys-tws-api-faq
+
 
 # License
 
