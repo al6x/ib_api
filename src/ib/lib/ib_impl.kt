@@ -9,6 +9,8 @@ import com.ib.client.Types
 import ib.IB
 import ib.IbConfig
 import ib.support.*
+import java.text.SimpleDateFormat
+import java.util.*
 
 private val log = Log("IB")
 
@@ -84,10 +86,20 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         }
       }
 
+      // Removing expired options, sometimes it takes couple of days for IB to clean expired options
+      val current_date = get_current_date_utc_yyyy_mm_dd()
+      val filtered_options = options.filter { o ->
+        val expired = o.contract.expiration < current_date
+        if (expired) {
+          log.warn("skipping expired option in portfolio ${o.contract.symbol} ${o.contract.expiration}")
+        }
+        expired
+      }
+
       Portfolio(
         account_id    = account_id,
         stocks        = stocks,
-        stock_options = options,
+        stock_options = filtered_options,
         cash_in_usd   = cash[account_id]!!
       )
     }.values.to_list()
@@ -645,4 +657,11 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
     if (ucurrency == "GBX") throw Exception("GBX currency is not supported, use GBP")
     return if (ucurrency == "GBP" && price != null) price / 100 else price
   }
+}
+
+private fun get_current_date_utc_yyyy_mm_dd(): String {
+  val date = Date()
+  val format = SimpleDateFormat("yyyy-MM-dd")
+  format.timeZone = TimeZone.getTimeZone("UTC")
+  return format.format(date)
 }
