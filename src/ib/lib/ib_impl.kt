@@ -93,7 +93,7 @@ class IBImpl(port: Int = IbConfig.ib_port) : IB() {
         if (expired) {
           log.warn("skipping expired option in portfolio ${o.contract.symbol} ${o.contract.expiration}")
         }
-        expired
+        !expired
       }
 
       Portfolio(
