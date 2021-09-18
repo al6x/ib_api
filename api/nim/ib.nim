@@ -5,7 +5,7 @@
 #
 #   nim c -r ibm.nim
 
-import base/preludem, http/http_clientm
+import base, base/http_client
 
 
 # IB and Config ------------------------------------------------------------------------------------
